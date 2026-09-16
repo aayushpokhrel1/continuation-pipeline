@@ -59,79 +59,81 @@ design under [`docs/`](docs/); nothing in the quick start below depends on it.
 
 ## Prerequisites
 
-- A **workstation** you want to reach (these docs target **Windows 11 + WSL2**;
-  the ideas port to macOS and Linux, where the terminal path is even simpler
-  because `tmux` runs natively).
-- **WSL2 with a distro** (Ubuntu here). The persistent `tmux` session lives
-  inside WSL, because native Windows has no `tmux`, and WSL is also where a
-  write capable Obsidian vault is reachable.
-- **Claude Code installed inside WSL** (`claude` on the WSL `PATH`).
+Works on any workstation that runs Claude Code: **Linux**, **macOS**, or
+**Windows**. You need:
+
+- A **workstation** with **Claude Code installed** (`claude` on its `PATH`).
 - A **phone** with a Tailscale app and any SSH client
   ([Termius](https://termius.com), [Blink](https://blink.sh), or Tailscale SSH).
 - A **Tailscale account** (free for personal use; sign in with Google or GitHub).
+- **Windows only:** WSL2 with a distro (Ubuntu). The persistent `tmux` session
+  lives inside WSL, because native Windows has no `tmux`, and WSL is also where a
+  write capable Obsidian vault is reachable. Linux and macOS run `tmux` natively,
+  so their setup is a single script with no WSL step.
+
+Two entry points, same as the other pipelines: **`setup.sh`** for Linux/macOS,
+**`setup.ps1`** for Windows.
 
 ---
 
 ## Quick start
 
 Three short steps: lay the private road, open the door on the workstation, walk
-in from the phone.
+in from the phone. Steps 1 and 2 differ per OS; step 3 is the same everywhere.
 
 ### 1. Backbone: join both devices to a tailnet
 
-**On the workstation (PowerShell):**
+Install Tailscale on the **workstation**, then bring it up and sign in:
 
-```powershell
-winget install --id tailscale.tailscale -e
-tailscale up
+| OS | Install | Bring up |
+|----|---------|----------|
+| **Linux** | `curl -fsSL https://tailscale.com/install.sh \| sh` | `sudo tailscale up` |
+| **macOS** | Mac App Store, or `brew install --cask tailscale` | `tailscale up` |
+| **Windows** | `winget install --id tailscale.tailscale -e` | `tailscale up` |
+
+Note the machine's tailnet name (like `your-host.tailnet-name.ts.net`) or its
+`100.x.y.z` from `tailscale ip`. Then install Tailscale on the **phone** and sign
+in with the **same account**. Both devices are now on one private network with a
+direct line to each other. Nothing is exposed to the public internet.
+
+### 2. Terminal path: enable SSH + tmux on the workstation
+
+**Linux / macOS** (one script; installs SSH, tmux, the `cc` helper, and, with a
+key, locks SSH to key only auth):
+
+```bash
+./setup.sh --key-path phone.pub     # omit --key-path to skip the key/hardening
 ```
 
-Sign in when the browser opens. Note the machine's tailnet name (something like
-`your-pc.tailnet-name.ts.net`) or its `100.x.y.z` address from `tailscale ip`.
-
-**On the phone:** install Tailscale from the App Store or Play Store and sign in
-with the **same account**. Both devices are now on the same private network and
-can reach each other directly. Nothing is exposed to the public internet.
-
-### 2. Terminal path: enable SSH on the workstation
-
-Run the setup script from an **elevated** PowerShell (it installs the OpenSSH
-server, starts it, sets it to start at boot, and adds your phone's public key):
+**Windows** (from an **elevated** PowerShell; installs the OpenSSH server, sets
+it to start at boot, installs your key, switches to key only auth):
 
 ```powershell
-.\setup.ps1
+.\setup.ps1 -PublicKeyPath C:\path\to\phone.pub
 ```
 
-What it does, and why each piece (read it before running, it changes system
-services):
-
-- Installs the **OpenSSH Server** Windows capability and starts the `sshd`
-  service with `Automatic` start, so the door is there after a reboot.
-- **Key only auth**: it disables password login and installs the public key you
-  provide, so a leaked or guessed password is not a way in. (Admin accounts on
-  Windows use `C:\ProgramData\ssh\administrators_authorized_keys` with locked
-  down ACLs, a well known gotcha the script handles for you.)
-- Leaves the firewall rule the OpenSSH installer creates in place; because the
-  only route to this box is the tailnet, you do **not** forward any router port.
-
-Then prepare the persistent session inside WSL:
+Then prepare the persistent session inside WSL (Windows only, because native
+Windows has no `tmux`):
 
 ```powershell
-wsl -d Ubuntu -- bash -lc 'bash /mnt/c/Users/<you>/dev/Projects/Continuation\ Pipeline/scripts/wsl-setup.sh'
+wsl -d Ubuntu -- bash -lc 'bash /mnt/c/Users/<you>/.../continuation-pipeline/scripts/wsl-setup.sh'
 ```
 
-That installs `tmux` and drops a `cc` helper into your shell (see below).
+Read either script before running; both change system services. Neither forwards
+a router port: the tailnet is the only route in. On Windows, admin accounts keep
+their key in `C:\ProgramData\ssh\administrators_authorized_keys` with locked down
+ACLs, a well known gotcha the script handles for you.
 
 ### 3. Connect from the phone
 
-SSH into the workstation over the tailnet, then start or reattach the session:
+Same on every OS. SSH in over the tailnet, then start or reattach the session:
 
 ```bash
-ssh <you>@your-pc.tailnet-name.ts.net
+ssh <you>@your-host.tailnet-name.ts.net
 cc            # attach the persistent Claude Code session, or create it
 ```
 
-`cc` is a one line helper installed in WSL:
+`cc` is the one line helper the setup installed in your shell:
 
 ```bash
 cc() { tmux new -A -s continuation 'claude'; }
@@ -139,12 +141,9 @@ cc() { tmux new -A -s continuation 'claude'; }
 
 `tmux new -A` **a**ttaches if the session exists and creates it otherwise, so the
 same command works the first time and every time. Because the `tmux` server keeps
-running inside WSL, you can drop the connection on the subway and reattach with
-the exact same screen when you surface. Detach with `Ctrl-b d`; the agent keeps
-working.
-
-macOS and Linux users skip WSL entirely: `tmux` is native, so `cc` is just
-`tmux new -A -s continuation 'claude'` in your shell profile.
+running (inside WSL on Windows, natively on Linux/macOS), you can drop the
+connection on the subway and reattach the exact same screen when you surface.
+Detach with `Ctrl-b d`; the agent keeps working.
 
 ---
 
@@ -172,7 +171,10 @@ box, without rotating anything else.
 
 ## Gotchas worth knowing
 
-These are the sharp edges that cost time, documented so they do not cost yours.
+**Linux and macOS have almost none of these**: `tmux` and `sshd` are native, so
+`setup.sh` is the whole story. The sharp edges below are the price Windows pays
+for not having a native terminal multiplexer, documented so they do not cost you
+time.
 
 - **`tmux` does not run on native Windows.** There is no PowerShell `tmux` and no
   native `screen`. Persistence has to live inside WSL (or you SSH straight into
