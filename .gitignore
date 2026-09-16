@@ -1,0 +1,22 @@
+# Secrets and local machine state, never commit
+*.pub
+*.pem
+*_key
+*_key.*
+id_ed25519*
+id_rsa*
+.env
+.env.*
+
+# Editor / OS cruft
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Knowledge graph output (regenerated locally)
+graphify-out/
+
+# Node (for the app path, later)
+node_modules/
+dist/
