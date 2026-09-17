@@ -1,6 +1,7 @@
 import { createServer as createHttp, type IncomingMessage, type ServerResponse } from "node:http";
 import { readFile } from "node:fs/promises";
 import { join, normalize, extname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { WebSocketServer } from "ws";
 import type { Config } from "./config.ts";
 import { checkToken } from "./auth.ts";
@@ -8,7 +9,7 @@ import { Session } from "./session.ts";
 import type { SessionSource } from "./source.ts";
 import type { ClientMessage, ServerMessage } from "./protocol.ts";
 
-const PUBLIC_DIR = new URL("../public/", import.meta.url).pathname;
+const PUBLIC_DIR = fileURLToPath(new URL("../public/", import.meta.url));
 const MIME: Record<string, string> = {
   ".html": "text/html", ".js": "text/javascript", ".css": "text/css",
   ".webmanifest": "application/manifest+json", ".json": "application/json",
