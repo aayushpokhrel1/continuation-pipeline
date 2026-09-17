@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Continuation</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header><span id="status">disconnected</span></header>
+  <main id="log"></main>
+  <form id="composer">
+    <input id="text" autocomplete="off" placeholder="Message the agent" />
+    <button type="submit">Send</button>
+  </form>
+  <dialog id="setup">
+    <form method="dialog">
+      <label>Server origin<input id="origin" placeholder="https://yusha.tail0a3619.ts.net" /></label>
+      <label>Token<input id="token" type="password" /></label>
+      <label>Repo<select id="repo"></select></label>
+      <button id="connect" type="submit">Connect</button>
+    </form>
+  </dialog>
+  <script src="app.js"></script>
+</body>
+</html>

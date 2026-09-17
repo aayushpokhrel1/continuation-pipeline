@@ -1,0 +1,9 @@
+{
+  "name": "Continuation",
+  "short_name": "Continuation",
+  "display": "standalone",
+  "background_color": "#111111",
+  "theme_color": "#111111",
+  "start_url": "./",
+  "icons": []
+}
