@@ -84,8 +84,10 @@ only, with a real certificate. Nothing is exposed to the public internet.
    approval mode (Ask / Auto-safe / YOLO), Connect. If Web Push is configured, you get
    a notification-permission prompt on Connect; allow it to receive pushes.
 3. You land on the repo's session list: tap a past session to reopen it (its history
-   loads), or "+ New session" to start fresh. Tap the header (gear) any time to change
-   repo/mode.
+   loads), or "+ New session" to start fresh. Tap "Sessions" in the header any time to
+   reopen the list and switch sessions without reconnecting; "Show archived" toggles the
+   archived view; each row has Archive / Unarchive (soft, reversible, kept on disk). Tap
+   the status (gear) to change repo/mode/token.
 4. Send a message. In Ask mode, when the agent wants a tool an approval card appears
    with Allow and Deny; tap Allow and the result streams back. Auto-safe auto-approves
    read-only tools (Read/Glob/Grep) and prompts for the rest; YOLO runs everything
