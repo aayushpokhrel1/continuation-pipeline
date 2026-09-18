@@ -73,6 +73,38 @@ test("lists sessions for a repo", async () => {
   assert.deepEqual(items, [{ sessionId: "s1", title: "demo session", lastModified: 1 }]);
 });
 
+test("archive hides a session from the default list", async () => {
+  const server = createServer(config, fakeSource);
+  await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+  const port = (server.address() as AddressInfo).port;
+
+  const ws = new WebSocket(`ws://127.0.0.1:${port}/ws`, ["bridge", "secret"]);
+  const sessions: any[] = [];
+  await new Promise<void>((resolve, reject) => {
+    ws.on("open", () => {
+      ws.send(JSON.stringify({ type: "archive", sessionId: "s1" }));
+      ws.send(JSON.stringify({ type: "list", repo: "demo" }));
+      ws.send(JSON.stringify({ type: "list", repo: "demo", archived: true }));
+    });
+    ws.on("message", (data) => {
+      const m = JSON.parse(data.toString());
+      if (m.type === "sessions") {
+        sessions.push(m);
+        if (sessions.length === 2) resolve();
+      }
+      if (m.type === "error") reject(new Error(m.message));
+    });
+    ws.on("error", reject);
+  });
+
+  ws.close();
+  await new Promise<void>((r) => server.close(() => r()));
+
+  assert.deepEqual(sessions[0], { type: "sessions", items: [], archived: false });
+  assert.equal(sessions[1].archived, true);
+  assert.deepEqual(sessions[1].items, [{ sessionId: "s1", title: "demo session", lastModified: 1 }]);
+});
+
 test("rejects a bad WS token", async () => {
   const server = createServer(config, fakeSource);
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));

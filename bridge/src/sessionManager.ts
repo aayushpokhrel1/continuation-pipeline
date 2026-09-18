@@ -1,4 +1,5 @@
 import { Session, type PushNotify } from "./session.ts";
+import { ArchiveStore } from "./archive.ts";
 import type { ApprovalMode, SessionSource, SessionInfo, TranscriptEvent } from "./source.ts";
 
 // Registry of live sessions that outlive individual WebSocket connections.
@@ -6,7 +7,7 @@ import type { ApprovalMode, SessionSource, SessionInfo, TranscriptEvent } from "
 export class SessionManager {
   private sessions = new Map<string, Session>();
 
-  constructor(private source: SessionSource, private pushNotify: PushNotify) {}
+  constructor(private source: SessionSource, private pushNotify: PushNotify, private archives: ArchiveStore = new ArchiveStore()) {}
 
   create(repoPath: string, mode: ApprovalMode): Session {
     return new Session(this.source, repoPath, mode, (s) => this.register(s), this.pushNotify);
@@ -28,9 +29,13 @@ export class SessionManager {
     return s;
   }
 
-  async listSessions(repoPath: string): Promise<SessionInfo[]> {
-    return this.source.listSessions ? this.source.listSessions(repoPath) : [];
+  async listSessions(repoPath: string, archived = false): Promise<SessionInfo[]> {
+    const all = this.source.listSessions ? await this.source.listSessions(repoPath) : [];
+    return all.filter((s) => this.archives.has(s.sessionId) === archived);
   }
+
+  archive(sessionId: string): void { this.archives.archive(sessionId); }
+  unarchive(sessionId: string): void { this.archives.unarchive(sessionId); }
 
   async getHistory(sessionId: string, repoPath: string): Promise<TranscriptEvent[]> {
     return this.source.getHistory ? this.source.getHistory(sessionId, repoPath) : [];

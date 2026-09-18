@@ -43,3 +43,18 @@ test("list/getHistory delegate; missing source methods yield []", async () => {
   assert.deepEqual(await bare.listSessions("/r"), []);
   assert.deepEqual(await bare.getHistory("s1", "/r"), []);
 });
+
+test("listSessions filters archived", async () => {
+  const items: SessionInfo[] = [
+    { sessionId: "a", title: "A", lastModified: 2 },
+    { sessionId: "b", title: "B", lastModified: 1 },
+  ];
+  const source: SessionSource = {
+    ...sessionSource,
+    async listSessions() { return items; },
+  };
+  const manager = new SessionManager(source, () => {});
+  manager.archive("a");
+  assert.deepEqual(await manager.listSessions("/r"), [items[1]]);
+  assert.deepEqual(await manager.listSessions("/r", true), [items[0]]);
+});

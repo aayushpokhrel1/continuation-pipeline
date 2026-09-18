@@ -7,6 +7,7 @@ import type { Config } from "./config.ts";
 import { discoverRepos } from "./repos.ts";
 import { checkToken } from "./auth.ts";
 import { SessionManager } from "./sessionManager.ts";
+import { ArchiveStore } from "./archive.ts";
 import type { Session } from "./session.ts";
 import type { SessionSource } from "./source.ts";
 import type { ClientMessage, ServerMessage } from "./protocol.ts";
@@ -27,8 +28,8 @@ function readBody(req: IncomingMessage): Promise<string> {
   });
 }
 
-export function createServer(config: Config, source: SessionSource, push?: PushLike) {
-  const manager = new SessionManager(source, (sessionId, payload) => push?.notify({ ...payload, sessionId }));
+export function createServer(config: Config, source: SessionSource, push?: PushLike, archives?: ArchiveStore) {
+  const manager = new SessionManager(source, (sessionId, payload) => push?.notify({ ...payload, sessionId }), archives);
   const http = createHttp(async (req: IncomingMessage, res: ServerResponse) => {
     const url = new URL(req.url ?? "/", "http://localhost");
     if (url.pathname === "/health") {
@@ -92,8 +93,9 @@ export function createServer(config: Config, source: SessionSource, push?: PushL
       if (msg.type === "list") {
         const path = repoPath(msg.repo);
         if (!path) { emit({ type: "error", message: "unknown repo" }); return; }
-        manager.listSessions(path)
-          .then((items) => emit({ type: "sessions", items }))
+        const archived = !!msg.archived;
+        manager.listSessions(path, archived)
+          .then((items) => emit({ type: "sessions", items, archived }))
           .catch((e) => emit({ type: "error", message: e instanceof Error ? e.message : String(e) }));
       } else if (msg.type === "start") {
         const path = repoPath(msg.repo);
@@ -117,6 +119,10 @@ export function createServer(config: Config, source: SessionSource, push?: PushL
         void current.handleUser(msg.text);
       } else if (msg.type === "approve") {
         current?.approve(msg.id, msg.decision);
+      } else if (msg.type === "archive") {
+        manager.archive(msg.sessionId);
+      } else if (msg.type === "unarchive") {
+        manager.unarchive(msg.sessionId);
       }
     });
 
