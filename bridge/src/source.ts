@@ -7,10 +7,13 @@ export type StreamEvent =
 
 export type CanUseToolFn = (name: string, input: unknown) => Promise<Decision>;
 
+export type ApprovalMode = "ask" | "auto-safe" | "yolo";
+
 export interface SendParams {
   repoPath: string;
   resumeId?: string;
   text: string;
+  mode: ApprovalMode;
   canUseTool: CanUseToolFn;
   onEvent: (e: StreamEvent) => void;
 }

@@ -1,7 +1,8 @@
 import type { Decision } from "./approvals.ts";
+import type { ApprovalMode } from "./source.ts";
 
 export type ClientMessage =
-  | { type: "start"; repo: string }
+  | { type: "start"; repo: string; mode?: ApprovalMode }
   | { type: "user"; text: string }
   | { type: "approve"; id: string; decision: Decision };
 

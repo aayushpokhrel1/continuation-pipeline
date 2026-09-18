@@ -59,7 +59,7 @@ export function createServer(config: Config, source: SessionSource) {
       if (msg.type === "start") {
         const repo = config.repos.find((r) => r.name === msg.repo);
         if (!repo) { emit({ type: "error", message: "unknown repo" }); return; }
-        session = new Session(source, repo.path, emit);
+        session = new Session(source, repo.path, emit, msg.mode ?? "ask");
       } else if (msg.type === "user") {
         if (!session) { emit({ type: "error", message: "start a session first" }); return; }
         void session.handleUser(msg.text);

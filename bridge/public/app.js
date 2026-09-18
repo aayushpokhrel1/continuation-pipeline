@@ -33,10 +33,10 @@ async function loadRepos(origin, token) {
   $("repo").innerHTML = repos.map((r) => `<option>${r}</option>`).join("");
 }
 
-function connect(origin, token, repo) {
+function connect(origin, token, repo, mode) {
   const wsUrl = origin.replace(/^http/, "ws") + "/ws";
   ws = new WebSocket(wsUrl, ["bridge", token]);
-  ws.onopen = () => { $("status").textContent = "connected"; ws.send(JSON.stringify({ type: "start", repo })); };
+  ws.onopen = () => { $("status").textContent = "connected"; ws.send(JSON.stringify({ type: "start", repo, mode })); };
   ws.onclose = () => ($("status").textContent = "disconnected");
   ws.onmessage = (ev) => {
     const m = JSON.parse(ev.data);
@@ -70,7 +70,7 @@ window.addEventListener("load", async () => {
     const o = $("origin").value.trim(), t = $("token").value.trim();
     localStorage.setItem("origin", o); localStorage.setItem("token", t);
     try { await loadRepos(o, t); } catch { line("error", "could not load repos"); return; }
-    connect(o, t, $("repo").value);
+    connect(o, t, $("repo").value, $("mode").value);
     dlg.close();
   });
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});

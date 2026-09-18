@@ -19,10 +19,48 @@ test("maps SDK messages to StreamEvents and captures session id", async () => {
   const out = await src.send({
     repoPath: "/mnt/c/repo",
     text: "hi",
+    mode: "ask",
     onEvent: (e) => events.push(e),
     canUseTool: async () => "allow",
   });
   assert.equal(out.sessionId, "sess-9");
   assert.ok(events.some((e) => e.kind === "assistant" && e.text === "hello"));
   assert.ok(events.some((e) => e.kind === "tool" && e.name === "Bash"));
+});
+
+// A fake that records the options it was called with, then yields a minimal result.
+function recordingQuery(record: { options?: any }) {
+  return async function* (args: any) {
+    record.options = args.options;
+    yield { type: "result", subtype: "success", session_id: "sess-rec" };
+  };
+}
+
+test("auto-safe mode allows read-only tools and keeps canUseTool", async () => {
+  const record: { options?: any } = {};
+  const src = new SdkSessionSource(recordingQuery(record) as any);
+  await src.send({
+    repoPath: "/mnt/c/repo",
+    text: "hi",
+    mode: "auto-safe",
+    onEvent: () => {},
+    canUseTool: async () => "allow",
+  });
+  assert.deepEqual(record.options.allowedTools, ["Read", "Glob", "Grep"]);
+  assert.equal(record.options.permissionMode, "default");
+  assert.equal(typeof record.options.canUseTool, "function");
+});
+
+test("yolo mode bypasses permissions and omits canUseTool", async () => {
+  const record: { options?: any } = {};
+  const src = new SdkSessionSource(recordingQuery(record) as any);
+  await src.send({
+    repoPath: "/mnt/c/repo",
+    text: "hi",
+    mode: "yolo",
+    onEvent: () => {},
+    canUseTool: async () => "allow",
+  });
+  assert.equal(record.options.permissionMode, "bypassPermissions");
+  assert.equal(record.options.canUseTool, undefined);
 });

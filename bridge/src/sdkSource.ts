@@ -17,17 +17,23 @@ export class SdkSessionSource implements SessionSource {
 
   async send(p: SendParams): Promise<{ sessionId: string }> {
     let sessionId = "";
+    const options: Record<string, unknown> = {
+      cwd: p.repoPath,
+      resume: p.resumeId,
+    };
+    if (p.mode === "yolo") {
+      options.permissionMode = "bypassPermissions";
+    } else {
+      options.permissionMode = "default";
+      options.canUseTool = async (toolName: string, input: Record<string, unknown>) => {
+        const decision = await p.canUseTool(toolName, input);
+        return toPermissionResult(decision, input);
+      };
+      if (p.mode === "auto-safe") options.allowedTools = ["Read", "Glob", "Grep"];
+    }
     const iterator = this.queryFn({
       prompt: p.text,
-      options: {
-        cwd: p.repoPath,
-        resume: p.resumeId,
-        permissionMode: "default",
-        canUseTool: async (toolName: string, input: Record<string, unknown>) => {
-          const decision = await p.canUseTool(toolName, input);
-          return toPermissionResult(decision, input);
-        },
-      },
+      options,
     } as any);
 
     for await (const msg of iterator as any) {

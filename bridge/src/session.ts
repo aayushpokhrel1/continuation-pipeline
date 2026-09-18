@@ -1,5 +1,5 @@
 import { ApprovalRegistry, type Decision } from "./approvals.ts";
-import type { SessionSource } from "./source.ts";
+import type { ApprovalMode, SessionSource } from "./source.ts";
 import type { ServerMessage } from "./protocol.ts";
 
 export class Session {
@@ -10,6 +10,7 @@ export class Session {
     private source: SessionSource,
     private repoPath: string,
     private emit: (m: ServerMessage) => void,
+    private mode: ApprovalMode = "ask",
   ) {}
 
   approve(id: string, decision: Decision): void {
@@ -22,6 +23,7 @@ export class Session {
         repoPath: this.repoPath,
         resumeId: this.sessionId,
         text,
+        mode: this.mode,
         onEvent: (e) => {
           if (e.kind === "assistant") this.emit({ type: "assistant", text: e.text });
           else if (e.kind === "tool") this.emit({ type: "tool", name: e.name, input: e.input });
