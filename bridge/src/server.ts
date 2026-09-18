@@ -5,7 +5,8 @@ import { fileURLToPath } from "node:url";
 import { WebSocketServer } from "ws";
 import type { Config } from "./config.ts";
 import { checkToken } from "./auth.ts";
-import { Session } from "./session.ts";
+import { SessionManager } from "./sessionManager.ts";
+import type { Session } from "./session.ts";
 import type { SessionSource } from "./source.ts";
 import type { ClientMessage, ServerMessage } from "./protocol.ts";
 import type { PushLike } from "./push.ts";
@@ -26,6 +27,7 @@ function readBody(req: IncomingMessage): Promise<string> {
 }
 
 export function createServer(config: Config, source: SessionSource, push?: PushLike) {
+  const manager = new SessionManager(source, (sessionId, payload) => push?.notify({ ...payload, sessionId }));
   const http = createHttp(async (req: IncomingMessage, res: ServerResponse) => {
     const url = new URL(req.url ?? "/", "http://localhost");
     if (url.pathname === "/health") {
@@ -77,29 +79,47 @@ export function createServer(config: Config, source: SessionSource, push?: PushL
     const token = (req.headers["sec-websocket-protocol"] ?? "").split(",").map((s) => s.trim())[1];
     if (!checkToken(config.token, token)) { ws.close(1008, "unauthorized"); return; }
 
-    let session: Session | undefined;
-    const emit = (m: ServerMessage) => {
-      if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(m));
-      if (push && m.type === "approval") void push.notify({ title: "Approval needed", body: m.name });
-      else if (push && m.type === "turn_done") void push.notify({ title: "Turn finished", body: "The agent is done." });
-    };
+    let current: Session | undefined;
+    const emit = (m: ServerMessage) => { if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(m)); };
+    const repoPath = (name: string): string | undefined => config.repos.find((r) => r.name === name)?.path;
 
     ws.on("message", (data) => {
       let msg: ClientMessage;
       try { msg = JSON.parse(data.toString()) as ClientMessage; }
       catch { emit({ type: "error", message: "bad json" }); return; }
 
-      if (msg.type === "start") {
-        const repo = config.repos.find((r) => r.name === msg.repo);
-        if (!repo) { emit({ type: "error", message: "unknown repo" }); return; }
-        session = new Session(source, repo.path, emit, msg.mode ?? "ask");
+      if (msg.type === "list") {
+        const path = repoPath(msg.repo);
+        if (!path) { emit({ type: "error", message: "unknown repo" }); return; }
+        manager.listSessions(path)
+          .then((items) => emit({ type: "sessions", items }))
+          .catch((e) => emit({ type: "error", message: e instanceof Error ? e.message : String(e) }));
+      } else if (msg.type === "start") {
+        const path = repoPath(msg.repo);
+        if (!path) { emit({ type: "error", message: "unknown repo" }); return; }
+        current?.detach();
+        current = manager.create(path, msg.mode ?? "ask");
+        current.attach(emit);
+      } else if (msg.type === "attach") {
+        const path = repoPath(msg.repo);
+        if (!path) { emit({ type: "error", message: "unknown repo" }); return; }
+        current?.detach();
+        current = manager.getOrCreate(msg.sessionId, path, msg.mode ?? "ask");
+        current.setMode(msg.mode ?? "ask");
+        current.attach(emit);
+        const s = current;
+        manager.getHistory(msg.sessionId, path)
+          .then((messages) => { emit({ type: "history", messages }); s.replayPending(); })
+          .catch(() => s.replayPending());
       } else if (msg.type === "user") {
-        if (!session) { emit({ type: "error", message: "start a session first" }); return; }
-        void session.handleUser(msg.text);
+        if (!current) { emit({ type: "error", message: "start or attach a session first" }); return; }
+        void current.handleUser(msg.text);
       } else if (msg.type === "approve") {
-        session?.approve(msg.id, msg.decision);
+        current?.approve(msg.id, msg.decision);
       }
     });
+
+    ws.on("close", () => { current?.detach(); });
   });
 
   return http;

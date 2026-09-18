@@ -2,7 +2,7 @@ import webpush from "web-push";
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 
 export interface Vapid { subject: string; publicKey: string; privateKey: string; }
-export type PushPayload = { title: string; body: string };
+export type PushPayload = { title: string; body: string; sessionId?: string };
 type Sub = webpush.PushSubscription;
 export type SendFn = (sub: Sub, payload: string) => Promise<unknown>;
 
