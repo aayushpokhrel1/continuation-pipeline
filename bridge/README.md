@@ -85,12 +85,21 @@ in WSL. From PowerShell (no admin needed):
 .\bridge\scripts\setup-autostart.ps1
 ```
 
-This registers a task named `ContinuationBridge` that runs `bridge/scripts/start-bridge.sh`
-(idempotent: it no-ops if the bridge is already up) at each logon. Start it now without
-logging out with `Start-ScheduledTask -TaskName ContinuationBridge`; remove it with
-`Unregister-ScheduledTask -TaskName ContinuationBridge -Confirm:$false`. Tailscale `serve` is
-already persistent (`--bg`), so nothing else is needed after a reboot. `start-bridge.sh` also
-works on its own on Linux/macOS if you want a login-item / systemd unit there.
+It runs `bridge/scripts/start-bridge.sh` (idempotent: it no-ops if the bridge is already up)
+at each logon. It first tries a Scheduled Task named `ContinuationBridge`; if the machine
+blocks user task creation (Access denied / HRESULT 0x80070005, common on locked-down setups),
+it falls back automatically to a hidden launcher in your Startup folder
+(`%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\ContinuationBridge.vbs`) which needs
+no special rights. The script prints which one it used and how to remove it:
+
+- Scheduled Task: start now `Start-ScheduledTask -TaskName ContinuationBridge`; remove
+  `Unregister-ScheduledTask -TaskName ContinuationBridge -Confirm:$false`.
+- Startup launcher: start now `wscript "<path printed by the script>"`; remove
+  `Remove-Item "<that path>"`.
+
+Tailscale `serve` is already persistent (`--bg`), so nothing else is needed after a reboot.
+`start-bridge.sh` also works on its own on Linux/macOS if you want a login-item / systemd unit
+there.
 
 ## Use it from the phone
 
