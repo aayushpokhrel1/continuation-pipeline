@@ -20,10 +20,51 @@ function escapeHtml(s) {
   return d.innerHTML;
 }
 
-function approvalCard(id, name, input) {
+// A diff model ({ path, lines: [{sign, text}], truncated }) as a <pre> of colored lines.
+function diffElement(model) {
+  const pre = document.createElement("pre");
+  pre.className = "diff";
+  for (const l of model.lines) {
+    const span = document.createElement("span");
+    span.className = l.sign === "+" ? "add" : "del";
+    span.textContent = l.sign + " " + l.text;
+    pre.appendChild(span);
+  }
+  if (model.truncated > 0) {
+    const more = document.createElement("span");
+    more.className = "more";
+    more.textContent = `… +${model.truncated} more line${model.truncated === 1 ? "" : "s"}`;
+    pre.appendChild(more);
+  }
+  return pre;
+}
+
+// A tool call rendered as its own diff card (name + path header, then the diff).
+function diffCard(name, model) {
+  const el = document.createElement("div");
+  el.className = "line diff";
+  const head = document.createElement("div");
+  head.className = "diffhead";
+  head.textContent = `${name} · ${model.path}`;
+  el.append(head, diffElement(model));
+  log.appendChild(el);
+  log.scrollTop = log.scrollHeight;
+  return el;
+}
+
+function approvalCard(id, name, input, diff) {
   const el = document.createElement("div");
   el.className = "line approval";
-  el.innerHTML = `<b>Approve ${escapeHtml(name)}?</b><pre>${escapeHtml(JSON.stringify(input, null, 2))}</pre>`;
+  const title = document.createElement("b");
+  title.textContent = `Approve ${name}?`;
+  el.appendChild(title);
+  if (diff) {
+    el.appendChild(diffElement(diff));
+  } else {
+    const pre = document.createElement("pre");
+    pre.textContent = JSON.stringify(input, null, 2);
+    el.appendChild(pre);
+  }
   const allow = document.createElement("button");
   allow.textContent = "Allow";
   const deny = document.createElement("button");
@@ -86,7 +127,7 @@ function renderHistory(messages) {
   log.innerHTML = "";
   for (const m of messages) {
     if (m.role === "user") line("user", m.text);
-    else if (m.tool) line("tool", "tool: " + m.tool);
+    else if (m.tool) { if (m.diff) diffCard(m.tool, m.diff); else line("tool", "tool: " + m.tool); }
     else if (m.text) line("assistant", m.text);
   }
 }
@@ -149,8 +190,8 @@ function handleServer(m) {
   else if (m.type === "history") renderHistory(m.messages);
   else if (m.type === "ready") { state.sessionId = m.sessionId; localStorage.setItem("sessionId", m.sessionId); }
   else if (m.type === "assistant") line("assistant", m.text);
-  else if (m.type === "tool") line("tool", "tool: " + m.name);
-  else if (m.type === "approval") approvalCard(m.id, m.name, m.input);
+  else if (m.type === "tool") { if (m.diff) diffCard(m.name, m.diff); else line("tool", "tool: " + m.name); }
+  else if (m.type === "approval") approvalCard(m.id, m.name, m.input, m.diff);
   else if (m.type === "turn_done") line("meta", "done");
   else if (m.type === "error") line("error", m.message);
 }

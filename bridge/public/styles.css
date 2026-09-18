@@ -15,6 +15,13 @@ header { padding: 10px 16px; border-bottom: 1px solid #8884; display: flex; just
 .approval { align-self: stretch; background: #f59e0b22; border: 1px solid #f59e0b; }
 .approval button { margin-right: 8px; margin-top: 8px; padding: 8px 16px; }
 .approval pre { overflow-x: auto; }
+.diff { align-self: stretch; padding: 0; overflow: hidden; }
+.diffhead { padding: 6px 10px; font-size: 12px; opacity: 0.7; background: #8882; }
+pre.diff, .approval pre.diff { margin: 0; padding: 8px 10px; font: 12px/1.45 ui-monospace, monospace; overflow-x: auto; background: #8881; }
+pre.diff span { display: block; white-space: pre; }
+pre.diff .add { color: #16a34a; background: #16a34a1a; }
+pre.diff .del { color: #dc2626; background: #dc26261a; }
+pre.diff .more { opacity: 0.6; font-style: italic; margin-top: 4px; }
 #composer { display: flex; gap: 8px; padding: 12px; border-top: 1px solid #8884; padding-bottom: max(12px, env(safe-area-inset-bottom)); }
 #composer input { flex: 1; padding: 12px; font-size: 16px; }
 dialog label { display: block; margin-bottom: 12px; }
