@@ -1,5 +1,6 @@
 {
   "port": 8790,
+  "projectsDir": "/mnt/c/Users/you/dev/Projects",
   "token": "change-me-to-a-long-random-string",
   "repos": [
     { "name": "continuation-pipeline", "path": "/mnt/c/Users/aayus/dev/Projects/Continuation Pipeline" }

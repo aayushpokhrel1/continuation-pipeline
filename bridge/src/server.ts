@@ -4,6 +4,7 @@ import { join, normalize, extname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { WebSocketServer } from "ws";
 import type { Config } from "./config.ts";
+import { discoverRepos } from "./repos.ts";
 import { checkToken } from "./auth.ts";
 import { SessionManager } from "./sessionManager.ts";
 import type { Session } from "./session.ts";
@@ -39,7 +40,7 @@ export function createServer(config: Config, source: SessionSource, push?: PushL
       const bearer = (req.headers.authorization ?? "").replace(/^Bearer /, "");
       if (!checkToken(config.token, bearer)) { res.writeHead(401); res.end(); return; }
       res.writeHead(200, { "content-type": "application/json" });
-      res.end(JSON.stringify({ repos: config.repos.map((r) => r.name) }));
+      res.end(JSON.stringify({ repos: discoverRepos(config).map((r) => r.name) }));
       return;
     }
     if (req.method === "GET" && url.pathname === "/vapid") {
@@ -81,7 +82,7 @@ export function createServer(config: Config, source: SessionSource, push?: PushL
 
     let current: Session | undefined;
     const emit = (m: ServerMessage) => { if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(m)); };
-    const repoPath = (name: string): string | undefined => config.repos.find((r) => r.name === name)?.path;
+    const repoPath = (name: string): string | undefined => discoverRepos(config).find((r) => r.name === name)?.path;
 
     ws.on("message", (data) => {
       let msg: ClientMessage;

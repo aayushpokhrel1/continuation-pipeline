@@ -5,6 +5,7 @@ export interface Config {
   port: number;
   token: string;
   repos: RepoRef[];
+  projectsDir?: string;
   vapid?: { subject: string; publicKey: string; privateKey: string };
 }
 
@@ -19,6 +20,12 @@ export function loadConfig(path: string): Config {
   }
   const port = typeof data.port === "number" ? data.port : 8790;
   const base: Config = { port, token: data.token, repos: data.repos };
+  if (data.projectsDir !== undefined) {
+    if (typeof data.projectsDir !== "string" || data.projectsDir.length === 0) {
+      throw new Error("config: projectsDir must be a non-empty string");
+    }
+    base.projectsDir = data.projectsDir;
+  }
   if (data.vapid) {
     for (const field of ["subject", "publicKey", "privateKey"] as const) {
       const value = data.vapid[field];
