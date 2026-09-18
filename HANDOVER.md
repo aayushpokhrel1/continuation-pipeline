@@ -19,7 +19,8 @@ network. Two layers: a terminal path (SSH + tmux) and a custom mobile bridge.
 | App path Stage 2, Slice A: approval modes (Ask/Auto-safe/YOLO) + Web Push | Done; phone push confirmed (turn-finished). Approving-while-away needed Slice B |
 | App path Stage 2, Slice B: session continuity (registry, list+history, reconnect, deep-link, repo auto-discovery) | Done, server+client verified in-browser; phone background/reconnect pending a real-device test |
 | App path Stage 2, Slice C: PWA polish (icons, offline shell) + auto-start on boot | Done; run bridge/scripts/setup-autostart.ps1 once to enable logon auto-start |
-| App path Stage 3 | Not started |
+| App path Stage 3: inline diff viewing (Edit/Write/MultiEdit in chat, approvals, history) | Done, browser-verified |
+| App path Stage 3: multi-repo management, terminal-continuation (PTY hybrid) | Not started |
 
 Both paths have been driven from a real iPhone. Stage 1 was verified with 13 passing
 tests, a clean typecheck, a live SDK smoke test, and the tailnet HTTPS endpoint.
@@ -92,6 +93,11 @@ README.md                                      project overview
 - Node file-URL paths: use `fileURLToPath`, not `.pathname` (this repo dir has a space).
 - Agent SDK 0.3.274: `canUseTool(toolName, input, options) => PermissionResult`,
   `{behavior:'allow'|'deny'}`, `session_id` on every message.
+- Run `npm run verify`/`test`/`dev` through WSL, not Windows. `node_modules/.bin/*` are
+  POSIX symlinks created in WSL, so `tsc`/`tsx` are "not recognized" on the Windows side.
+  The delegate `--verify` runs on Windows/cmd, so it can't run the bridge's verify: after a
+  delegate run, verify + commit manually via
+  `wsl -d Ubuntu -- bash -lc 'source /home/yusha/.nvm/nvm.sh && cd "/mnt/c/.../bridge" && npm run verify'`.
 
 ## Slice A (shipped 2026-09-18): approval modes + Web Push
 
@@ -141,10 +147,21 @@ whole point). Auto-reconnect-on-foreground is code-verified but not phone-tested
   registers a logon Scheduled Task `ContinuationBridge`. NOT auto-registered by Claude (it's a
   standing machine change); run the .ps1 once to enable.
 
-## Next: Stage 3
+## Stage 3: inline diff viewing (shipped 2026-09-18)
 
-Multi-repo management, the terminal-session continuation source (PTY hybrid), inline diff
-viewing. Stage 2 (Slices A/B/C) is complete.
+`src/diff.ts` `buildDiff(toolName, input)` turns an Edit/Write/MultiEdit tool call into a
+diff model (removed `-` / added `+` lines, path, truncation past 40 lines); pure and unit
+tested (`src/diff.test.ts`). Wired as an optional `diff?` on the `tool` and `approval`
+ServerMessages and on `TranscriptEvent`, computed at the three `session.ts` emit sites and
+in `sdkSource.ts` `getHistory` (so diffs survive history replay). Client renders colored diff
+cards in chat, in the approval card (above Allow/Deny), and on history replay; non-diff tools
+keep the plain `tool: <name>` line. `ponytail:` block view (whole old removed, whole new
+added), not an LCS line-diff, upgrade in `diff.ts` if large edits read poorly.
+
+## Next: rest of Stage 3
+
+Multi-repo management and the terminal-session continuation source (PTY hybrid). Stage 2
+(Slices A/B/C) is complete.
 
 Build workflow: Slices A and B were built with `/orchestrate` (deepseek for the modules,
 inline for the untestable/browser-verified client), each task verify+commit through the WSL
