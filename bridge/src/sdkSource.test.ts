@@ -64,3 +64,48 @@ test("yolo mode bypasses permissions and omits canUseTool", async () => {
   assert.equal(record.options.permissionMode, "bypassPermissions");
   assert.equal(record.options.canUseTool, undefined);
 });
+
+test("listSessions maps and sorts newest-first", async () => {
+  const fakeList = async () => [
+    { sessionId: "a", summary: "old", lastModified: 1 },
+    { sessionId: "b", customTitle: "New", lastModified: 2 },
+  ];
+  const src = new SdkSessionSource(undefined as any, fakeList as any, undefined as any);
+  const out = await src.listSessions("/mnt/c/repo");
+  assert.deepEqual(out, [
+    { sessionId: "b", title: "New", lastModified: 2 },
+    { sessionId: "a", title: "old", lastModified: 1 },
+  ]);
+});
+
+test("getHistory maps user text and assistant text/tool", async () => {
+  const fakeHistory = async () => [
+    { type: "user", message: { content: "hi" } },
+    { type: "assistant", message: { content: [{ type: "text", text: "hello" }, { type: "tool_use", name: "Bash" }] } },
+    { type: "system", message: {} },
+  ];
+  const src = new SdkSessionSource(undefined as any, undefined as any, fakeHistory as any);
+  const out = await src.getHistory("sess-1", "/mnt/c/repo");
+  assert.deepEqual(out, [
+    { role: "user", text: "hi" },
+    { role: "assistant", text: "hello" },
+    { role: "assistant", tool: "Bash" },
+  ]);
+});
+
+test("send emits a session event when the id first appears", async () => {
+  async function* sessionQuery() {
+    yield { type: "system", subtype: "init", session_id: "sess-9" };
+    yield { type: "result", subtype: "success" };
+  }
+  const src = new SdkSessionSource(sessionQuery as any);
+  const events: StreamEvent[] = [];
+  await src.send({
+    repoPath: "/mnt/c/repo",
+    text: "hi",
+    mode: "ask",
+    onEvent: (e) => events.push(e),
+    canUseTool: async () => "allow",
+  });
+  assert.deepEqual(events.filter((e) => e.kind === "session"), [{ kind: "session", sessionId: "sess-9" }]);
+});
