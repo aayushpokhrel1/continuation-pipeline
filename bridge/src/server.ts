@@ -8,6 +8,7 @@ import { checkToken } from "./auth.ts";
 import { Session } from "./session.ts";
 import type { SessionSource } from "./source.ts";
 import type { ClientMessage, ServerMessage } from "./protocol.ts";
+import type { PushLike } from "./push.ts";
 
 const PUBLIC_DIR = fileURLToPath(new URL("../public/", import.meta.url));
 const MIME: Record<string, string> = {
@@ -15,7 +16,16 @@ const MIME: Record<string, string> = {
   ".webmanifest": "application/manifest+json", ".json": "application/json",
 };
 
-export function createServer(config: Config, source: SessionSource) {
+function readBody(req: IncomingMessage): Promise<string> {
+  return new Promise((resolve, reject) => {
+    let data = "";
+    req.on("data", (c) => (data += c));
+    req.on("end", () => resolve(data));
+    req.on("error", reject);
+  });
+}
+
+export function createServer(config: Config, source: SessionSource, push?: PushLike) {
   const http = createHttp(async (req: IncomingMessage, res: ServerResponse) => {
     const url = new URL(req.url ?? "/", "http://localhost");
     if (url.pathname === "/health") {
@@ -28,6 +38,25 @@ export function createServer(config: Config, source: SessionSource) {
       if (!checkToken(config.token, bearer)) { res.writeHead(401); res.end(); return; }
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify({ repos: config.repos.map((r) => r.name) }));
+      return;
+    }
+    if (req.method === "GET" && url.pathname === "/vapid") {
+      if (!push) { res.writeHead(404); res.end(); return; }
+      const bearer = (req.headers.authorization ?? "").replace(/^Bearer /, "");
+      if (!checkToken(config.token, bearer)) { res.writeHead(401); res.end(); return; }
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ publicKey: push.publicKey }));
+      return;
+    }
+    if (req.method === "POST" && url.pathname === "/subscribe") {
+      if (!push) { res.writeHead(404); res.end(); return; }
+      const bearer = (req.headers.authorization ?? "").replace(/^Bearer /, "");
+      if (!checkToken(config.token, bearer)) { res.writeHead(401); res.end(); return; }
+      let sub;
+      try { sub = JSON.parse(await readBody(req)); }
+      catch { res.writeHead(400); res.end(); return; }
+      push.add(sub);
+      res.writeHead(201); res.end();
       return;
     }
     // static files
@@ -49,7 +78,11 @@ export function createServer(config: Config, source: SessionSource) {
     if (!checkToken(config.token, token)) { ws.close(1008, "unauthorized"); return; }
 
     let session: Session | undefined;
-    const emit = (m: ServerMessage) => ws.readyState === ws.OPEN && ws.send(JSON.stringify(m));
+    const emit = (m: ServerMessage) => {
+      if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(m));
+      if (push && m.type === "approval") void push.notify({ title: "Approval needed", body: m.name });
+      else if (push && m.type === "turn_done") void push.notify({ title: "Turn finished", body: "The agent is done." });
+    };
 
     ws.on("message", (data) => {
       let msg: ClientMessage;

@@ -3,5 +3,10 @@
   "token": "change-me-to-a-long-random-string",
   "repos": [
     { "name": "continuation-pipeline", "path": "/mnt/c/Users/aayus/dev/Projects/Continuation Pipeline" }
-  ]
+  ],
+  "vapid": {
+    "subject": "mailto:you@example.com",
+    "publicKey": "run: npx web-push generate-vapid-keys, paste publicKey here",
+    "privateKey": "paste privateKey here (secret, gitignored)"
+  }
 }

@@ -56,3 +56,27 @@ test("rejects a bad WS token", async () => {
   await new Promise<void>((r) => server.close(() => r()));
   assert.equal(closed, 1008);
 });
+
+test("serves the vapid public key and accepts a subscription", async () => {
+  const fakePush = { publicKey: "PUB", added: [] as any[], add(s: any) { this.added.push(s); }, async notify() {} };
+  const server = createServer(config, fakeSource, fakePush);
+  await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+  const port = (server.address() as AddressInfo).port;
+  const base = `http://127.0.0.1:${port}`;
+
+  const vapidRes = await fetch(`${base}/vapid`, { headers: { authorization: "Bearer secret" } });
+  assert.equal(vapidRes.status, 200);
+  assert.deepEqual(await vapidRes.json(), { publicKey: "PUB" });
+
+  const sub = { endpoint: "https://x/1", keys: { p256dh: "k", auth: "a" } };
+  const subRes = await fetch(`${base}/subscribe`, {
+    method: "POST",
+    headers: { authorization: "Bearer secret", "content-type": "application/json" },
+    body: JSON.stringify(sub),
+  });
+  assert.equal(subRes.status, 201);
+  assert.equal(fakePush.added.length, 1);
+  assert.deepEqual(fakePush.added[0], sub);
+
+  await new Promise<void>((r) => server.close(() => r()));
+});

@@ -23,6 +23,7 @@ dist/
 
 # Bridge local secret config (holds the bearer token)
 bridge/config.json
+bridge/subscriptions.json
 
 # Orchestration scratch (briefs, review diffs)
 bridge/*.brief.md
