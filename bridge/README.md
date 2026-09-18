@@ -1,4 +1,4 @@
-# Continuation Bridge (Stage 1)
+# Continuation Bridge
 
 The app path of Continuation Pipeline: a self hosted server that drives Claude Code
 through the Claude Agent SDK, with a mobile PWA that starts a session in a chosen
@@ -6,9 +6,10 @@ repo, streams the agent's output, and lets you approve or deny each tool from yo
 phone. It runs inside WSL and is reached over your Tailscale network, no public
 exposure.
 
-Stage 1 scope: start a session in a chosen repo, stream output, approve or deny
-tools (Ask mode), send follow ups. One session per connection. Session resume, Web
-Push, and the auto approve modes come in Stage 2.
+Shipped: start a session in a chosen repo, stream output, approve or deny tools, send
+follow ups, pick an approval mode (Ask / Auto-safe / YOLO), and get a Web Push
+notification when a tool needs approval or a turn finishes. One session per connection.
+Session resume comes next (Slice B); PWA polish and auto-start after that (Slice C).
 
 ## Prerequisites
 
@@ -31,6 +32,28 @@ cp config.example.json config.json
 is `{ "name": "...", "path": "/mnt/c/..." }`; the agent runs with that path as its
 working directory.
 
+### Web Push (optional)
+
+To enable phone notifications, add a `vapid` block to `config.json`:
+
+```bash
+npx web-push generate-vapid-keys   # prints a public and private key
+```
+
+```json
+"vapid": {
+  "subject": "mailto:you@example.com",
+  "publicKey": "<the public key>",
+  "privateKey": "<the private key>"
+}
+```
+
+The private key is a secret and stays in `config.json` (gitignored); it is never sent
+to the phone or logged. Without a `vapid` block the bridge still runs, just without
+push (the `/vapid` and `/subscribe` endpoints return 404). Phone subscriptions are
+stored in `subscriptions.json` (also gitignored). On iOS, Web Push only works once the
+PWA is added to the Home Screen.
+
 ## Run
 
 ```bash
@@ -52,10 +75,14 @@ only, with a real certificate. Nothing is exposed to the public internet.
 
 1. On the iPhone (already on the tailnet), open Safari to
    `https://<your-host>.<tailnet>.ts.net/`.
-2. In the setup dialog, enter that same origin and your token, pick a repo, Connect.
-3. Send a message. When the agent wants to use a tool, an approval card appears with
-   Allow and Deny. Tap Allow and the result streams back.
-4. Share sheet, Add to Home Screen, to install it as an app.
+2. In the setup dialog, enter that same origin and your token, pick a repo and an
+   approval mode (Ask / Auto-safe / YOLO), Connect. If Web Push is configured, you get
+   a notification-permission prompt on Connect; allow it to receive pushes.
+3. Send a message. In Ask mode, when the agent wants a tool an approval card appears
+   with Allow and Deny; tap Allow and the result streams back. Auto-safe auto-approves
+   read-only tools (Read/Glob/Grep) and prompts for the rest; YOLO runs everything
+   without prompting.
+4. Share sheet, Add to Home Screen, to install it as an app (required for iOS push).
 
 ## Test and typecheck
 
@@ -73,16 +100,19 @@ src/approvals.ts    async approval registry (allow/deny promises)
 src/protocol.ts     WebSocket message types (client <-> server)
 src/source.ts       SessionSource interface (the seam for Stage 2/3 sources)
 src/session.ts      one turn: source + approvals + streamed events
-src/sdkSource.ts    Agent SDK implementation of SessionSource
-src/server.ts       HTTP (health, repos, static) + WebSocket
+src/sdkSource.ts    Agent SDK implementation of SessionSource (maps approval mode -> SDK options)
+src/push.ts         Web Push: VAPID send + subscription store (PushLike seam)
+src/server.ts       HTTP (health, repos, vapid, subscribe, static) + WebSocket
 src/index.ts        entrypoint
-public/             the PWA
+public/             the PWA (sw.js handles push + notification clicks)
 ```
 
 ## Notes
 
-- Ask mode only in Stage 1: every permissioned tool prompts the phone. Read the
-  approval card before allowing; a denied tool returns "Denied from phone" to the agent.
+- Approval modes are per session: Ask (every permissioned tool prompts the phone),
+  Auto-safe (`allowedTools` auto-approves Read/Glob/Grep, the rest prompt), YOLO
+  (`bypassPermissions`, nothing prompts). A denied tool returns "Denied from phone".
+  YOLO runs any tool the agent picks without asking; only use it on a trusted run.
 - One session per WebSocket connection. Reconnecting starts a fresh session.
 - The server binds to 127.0.0.1 on purpose; Tailscale `serve` is what exposes it to
   the tailnet, so there is no open port on any other interface.
