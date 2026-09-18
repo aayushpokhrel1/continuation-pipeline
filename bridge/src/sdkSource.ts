@@ -1,6 +1,7 @@
 import { query as sdkQuery, listSessions as sdkListSessions, getSessionMessages as sdkGetSessionMessages } from "@anthropic-ai/claude-agent-sdk";
 import type { SessionSource, SendParams, SessionInfo, TranscriptEvent } from "./source.ts";
 import type { Decision } from "./approvals.ts";
+import { buildDiff } from "./diff.ts";
 
 type QueryFn = typeof sdkQuery;
 
@@ -82,7 +83,10 @@ export class SdkSessionSource implements SessionSource {
       } else if (msg.type === "assistant" && Array.isArray(content)) {
         for (const b of content) {
           if (b?.type === "text") out.push({ role: "assistant", text: b.text });
-          else if (b?.type === "tool_use") out.push({ role: "assistant", tool: b.name });
+          else if (b?.type === "tool_use") {
+            const diff = buildDiff(b.name, b.input);
+            out.push({ role: "assistant", tool: b.name, ...(diff ? { diff } : {}) });
+          }
         }
       }
     }

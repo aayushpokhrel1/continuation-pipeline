@@ -1,4 +1,5 @@
 import type { Decision } from "./approvals.ts";
+import type { DiffModel } from "./diff.ts";
 import type { ApprovalMode, SessionInfo, TranscriptEvent } from "./source.ts";
 
 export type ClientMessage =
@@ -15,7 +16,7 @@ export type ServerMessage =
   | { type: "sessions"; items: SessionInfo[]; archived: boolean }
   | { type: "history"; messages: TranscriptEvent[] }
   | { type: "assistant"; text: string }
-  | { type: "tool"; name: string; input: unknown }
-  | { type: "approval"; id: string; name: string; input: unknown }
+  | { type: "tool"; name: string; input: unknown; diff?: DiffModel }
+  | { type: "approval"; id: string; name: string; input: unknown; diff?: DiffModel }
   | { type: "turn_done" }
   | { type: "error"; message: string };

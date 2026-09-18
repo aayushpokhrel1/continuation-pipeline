@@ -1,4 +1,5 @@
 import type { Decision } from "./approvals.ts";
+import type { DiffModel } from "./diff.ts";
 
 export type StreamEvent =
   | { kind: "assistant"; text: string }
@@ -7,7 +8,7 @@ export type StreamEvent =
   | { kind: "session"; sessionId: string };
 
 export interface SessionInfo { sessionId: string; title: string; lastModified: number; }
-export interface TranscriptEvent { role: "user" | "assistant"; text?: string; tool?: string; }
+export interface TranscriptEvent { role: "user" | "assistant"; text?: string; tool?: string; diff?: DiffModel; }
 
 export type CanUseToolFn = (name: string, input: unknown) => Promise<Decision>;
 

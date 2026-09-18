@@ -1,4 +1,5 @@
 import { ApprovalRegistry, type Decision } from "./approvals.ts";
+import { buildDiff } from "./diff.ts";
 import type { ApprovalMode, SessionSource } from "./source.ts";
 import type { ServerMessage } from "./protocol.ts";
 
@@ -36,7 +37,10 @@ export class Session {
 
   // Re-send unresolved approvals to the currently attached socket (on re-attach).
   replayPending(): void {
-    for (const [id, { name, input }] of this.pending) this.emitFn({ type: "approval", id, name, input });
+    for (const [id, { name, input }] of this.pending) {
+      const diff = buildDiff(name, input);
+      this.emitFn({ type: "approval", id, name, input, ...(diff ? { diff } : {}) });
+    }
   }
 
   async handleUser(text: string): Promise<void> {
@@ -52,12 +56,16 @@ export class Session {
             this.onRegister(this);
             this.emit({ type: "ready", sessionId: e.sessionId });
           } else if (e.kind === "assistant") this.emit({ type: "assistant", text: e.text });
-          else if (e.kind === "tool") this.emit({ type: "tool", name: e.name, input: e.input });
+          else if (e.kind === "tool") {
+            const diff = buildDiff(e.name, e.input);
+            this.emit({ type: "tool", name: e.name, input: e.input, ...(diff ? { diff } : {}) });
+          }
         },
         canUseTool: (name, input) => {
           const { id, promise } = this.approvals.create();
           this.pending.set(id, { name, input });
-          this.emit({ type: "approval", id, name, input });
+          const diff = buildDiff(name, input);
+          this.emit({ type: "approval", id, name, input, ...(diff ? { diff } : {}) });
           return promise;
         },
       });
