@@ -17,6 +17,7 @@ const PUBLIC_DIR = fileURLToPath(new URL("../public/", import.meta.url));
 const MIME: Record<string, string> = {
   ".html": "text/html", ".js": "text/javascript", ".css": "text/css",
   ".webmanifest": "application/manifest+json", ".json": "application/json",
+  ".svg": "image/svg+xml", ".png": "image/png",
 };
 
 function readBody(req: IncomingMessage): Promise<string> {
