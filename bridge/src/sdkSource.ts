@@ -59,7 +59,7 @@ export class SdkSessionSource implements SessionSource {
     return (infos as any[])
       .map((i) => ({
         sessionId: i.sessionId,
-        title: i.customTitle ?? i.summary ?? i.firstPrompt ?? i.sessionId,
+        title: i.customTitle || i.summary || i.firstPrompt || i.sessionId,
         lastModified: i.lastModified ?? 0,
       }))
       .sort((a, b) => b.lastModified - a.lastModified);
