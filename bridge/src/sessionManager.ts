@@ -29,6 +29,10 @@ export class SessionManager {
     return s;
   }
 
+  liveRepoPaths(): Set<string> {
+    return new Set([...this.sessions.values()].map((s) => s.repoPath));
+  }
+
   async listSessions(repoPath: string, archived = false): Promise<SessionInfo[]> {
     const all = this.source.listSessions ? await this.source.listSessions(repoPath) : [];
     return all.filter((s) => this.archives.has(s.sessionId) === archived);

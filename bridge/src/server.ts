@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { WebSocketServer } from "ws";
 import type { Config } from "./config.ts";
 import { discoverRepos } from "./repos.ts";
+import { buildOverview } from "./overview.ts";
 import { checkToken } from "./auth.ts";
 import { SessionManager } from "./sessionManager.ts";
 import { ArchiveStore } from "./archive.ts";
@@ -97,6 +98,10 @@ export function createServer(config: Config, source: SessionSource, push?: PushL
         const archived = !!msg.archived;
         manager.listSessions(path, archived)
           .then((items) => emit({ type: "sessions", items, archived }))
+          .catch((e) => emit({ type: "error", message: e instanceof Error ? e.message : String(e) }));
+      } else if (msg.type === "listAll") {
+        buildOverview(config, manager)
+          .then((ov) => emit({ type: "sessionsAll", items: ov.items, repos: ov.repos }))
           .catch((e) => emit({ type: "error", message: e instanceof Error ? e.message : String(e) }));
       } else if (msg.type === "start") {
         const path = repoPath(msg.repo);

@@ -73,6 +73,35 @@ test("lists sessions for a repo", async () => {
   assert.deepEqual(items, [{ sessionId: "s1", title: "demo session", lastModified: 1 }]);
 });
 
+test("lists all sessions across repos", async () => {
+  const server = createServer(config, fakeSource);
+  await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+  const port = (server.address() as AddressInfo).port;
+
+  const ws = new WebSocket(`ws://127.0.0.1:${port}/ws`, ["bridge", "secret"]);
+  const m = await new Promise<any>((resolve, reject) => {
+    ws.on("open", () => ws.send(JSON.stringify({ type: "listAll" })));
+    ws.on("message", (data) => {
+      const msg = JSON.parse(data.toString());
+      if (msg.type === "sessionsAll") resolve(msg);
+      if (msg.type === "error") reject(new Error(msg.message));
+    });
+    ws.on("error", reject);
+  });
+
+  ws.close();
+  await new Promise<void>((r) => server.close(() => r()));
+
+  assert.deepEqual(m.items, [
+    { sessionId: "s1", title: "demo session", lastModified: 1, repo: "demo", repoPath: "/tmp/demo" },
+  ]);
+  assert.equal(m.repos.length, 1);
+  assert.equal(m.repos[0].name, "demo");
+  assert.equal(m.repos[0].path, "/tmp/demo");
+  assert.equal(m.repos[0].lastModified, 1);
+  assert.equal(m.repos[0].live, false);
+});
+
 test("archive hides a session from the default list", async () => {
   const server = createServer(config, fakeSource);
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
