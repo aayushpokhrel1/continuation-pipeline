@@ -9,14 +9,16 @@ Repo: https://github.com/aayushpokhrel1/continuation-pipeline (public, MIT).
 What it is: secure phone to workstation access to Claude Code over a private Tailscale
 network. Two layers: a terminal path (SSH + tmux) and a custom mobile bridge.
 
-## Current state (2026-09-17)
+## Current state (2026-09-18)
 
 | Piece | Status |
 |-------|--------|
 | Backbone: Tailscale tailnet | Done, live on this machine |
 | Terminal path: SSH + tmux + `cc` (Windows/WSL, plus Linux/macOS `setup.sh`) | Done, verified from iPhone (Termius) |
 | App path Stage 1: mobile bridge (SDK server + PWA, Ask-mode approvals) | Done, tested, live on the tailnet |
-| App path Stage 2 | Not started (see Next) |
+| App path Stage 2, Slice A: approval modes (Ask/Auto-safe/YOLO) + Web Push | Done, server smoke-verified; phone push pending a real-device test |
+| App path Stage 2, Slice B (session list + resume) | Not started (see Next) |
+| App path Stage 2, Slice C (PWA polish + auto-start) | Not started |
 | App path Stage 3 | Not started |
 
 Both paths have been driven from a real iPhone. Stage 1 was verified with 13 passing
@@ -91,14 +93,31 @@ README.md                                      project overview
 - Agent SDK 0.3.274: `canUseTool(toolName, input, options) => PermissionResult`,
   `{behavior:'allow'|'deny'}`, `session_id` on every message.
 
-## Next (Stage 2, when you resume)
+## Slice A (shipped 2026-09-18): approval modes + Web Push
 
-Give the bridge its own brainstorm to spec to plan cycle, then build:
-- Session list + resume (`listSessions` + `resume`), so the app shows past sessions.
-- Web Push notifications when a tool needs approval or a turn finishes.
-- The three approval modes: Ask (done), Auto-safe (`allowedTools`), YOLO (`bypassPermissions`).
-- Installable PWA polish, and auto-start the bridge on boot.
+- **Approval modes** are per session, chosen in the `start` message: `ask` (default,
+  `canUseTool` routes all), `auto-safe` (`allowedTools: ['Read','Glob','Grep']` auto-approve,
+  rest prompt), `yolo` (`bypassPermissions`, no `canUseTool`). Mapped in `sdkSource.ts`.
+- **Web Push:** VAPID keys live in `config.json` (gitignored) and were generated on this
+  machine already. `GET /vapid` serves the public key (bearer-auth); `POST /subscribe` stores
+  the phone's subscription in a gitignored `subscriptions.json`; the server pushes on
+  approval-needed and turn-finished. Client subscribes from the Connect tap. Uses `web-push`.
+- **Still to verify:** open the PWA on the iPhone (must be added to the Home Screen for iOS
+  Web Push), Connect, grant the notification prompt, then background it and trigger an
+  approval or finish a turn to confirm the push arrives. Server side is smoke-verified
+  (`/health`, `/vapid` 200 with token / 401 without, `/subscribe` 400 on bad JSON).
+
+## Next (remaining Stage 2)
+
+- **Slice B:** session list + resume (`listSessions` + `getSessionMessages` + `resume`), so
+  the app shows and re-enters past sessions. Sessions currently live only in the WS
+  connection's memory.
+- **Slice C:** installable PWA polish (icons, offline shell) + auto-start the bridge on boot.
+
 Stage 3: multi-repo management, the terminal-session continuation source, inline diffs.
+
+Build workflow: Slice A was built with `/orchestrate` (deepseek for the modules, inline for
+the untestable client push), each task verify+commit through the WSL `npm run verify`.
 
 Build workflow used here (per the global CLAUDE.md): delegate implementation to the
 pipeline (`deepseek` for modules, `free` for boilerplate) with review, keep design, SDK

@@ -77,14 +77,28 @@ phone PWA  <--- websocket over Tailscale HTTPS --->  bridge server (workstation)
 
 ## Tool-approval modes (client-selectable per session)
 
-- **Ask** (Stage 1): `permissionMode: 'default'`, every permissioned tool routes through
+- **Ask** (shipped): `permissionMode: 'default'`, every permissioned tool routes through
   `canUseTool` to the phone for allow/deny.
-- **Auto-safe** (Stage 2): `allowedTools` auto-approves read-only tools; writes/bash prompt.
-- **YOLO** (Stage 2): `permissionMode: 'bypassPermissions'` for a trusted run.
+- **Auto-safe** (shipped, Slice A): `allowedTools: ['Read','Glob','Grep']` auto-approves
+  read-only tools; writes/bash still prompt.
+- **YOLO** (shipped, Slice A): `permissionMode: 'bypassPermissions'`, no `canUseTool`, for a
+  trusted run.
+
+The client picks the mode in the `start` message; `sdkSource.ts` maps it to SDK options (the
+one place that knows the SDK permission shape).
 
 ## Stages
 
 - **Stage 1 (MVP, this plan):** start a session in a chosen repo, stream output, approve
   or deny tools from the phone, send follow-ups. Bearer token, over Tailscale. Ask mode only.
-- **Stage 2:** session list + resume, Web Push, the three approval modes, installable PWA polish.
+- **Stage 2, Slice A (shipped):** the three approval modes + Web Push. Server holds VAPID
+  keys in `config.json` (private key gitignored, never served/logged), serves the public key
+  at `GET /vapid`, stores phone subscriptions from `POST /subscribe` in a gitignored
+  `subscriptions.json`, and pushes on approval-needed and turn-finished. Client subscribes
+  from the Connect gesture and shows notifications via the service worker. `web-push` handles
+  VAPID crypto. Push is optional: absent VAPID config, the endpoints 404 and the bridge still
+  runs.
+- **Stage 2, Slice B (next):** session list + resume (`listSessions` / `getSessionMessages`),
+  so the app shows and re-enters past sessions.
+- **Stage 2, Slice C:** installable PWA polish (icons, offline shell) + auto-start on boot.
 - **Stage 3:** multi-repo management, terminal-continuation source (C), inline diff viewing.
