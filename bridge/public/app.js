@@ -2,6 +2,7 @@ const $ = (id) => document.getElementById(id);
 const log = $("log");
 let ws;
 let inSession = false; // true once we've attached/started a session this run
+let showArchived = false; // which view the session list is showing
 const state = { origin: "", token: "", repo: "", mode: "ask", sessionId: null };
 
 function line(cls, text) {
@@ -90,18 +91,37 @@ function renderHistory(messages) {
   }
 }
 
-function showSessions(items) {
+function requestSessions() {
+  send({ type: "list", repo: state.repo, archived: showArchived });
+}
+
+function showSessions(items, archived) {
+  showArchived = !!archived;
   const list = $("sesslist");
   list.innerHTML = "";
-  $("sesstitle").textContent = `Sessions in ${state.repo}`;
-  if (!items.length) list.innerHTML = "<p>No past sessions. Start a new one.</p>";
+  $("sesstitle").textContent = `${showArchived ? "Archived in" : "Sessions in"} ${state.repo}`;
+  $("togglearchived").textContent = showArchived ? "Show active" : "Show archived";
+  if (!items.length) {
+    list.innerHTML = `<p>${showArchived ? "No archived sessions." : "No sessions. Start a new one."}</p>`;
+  }
   for (const s of items) {
-    const b = document.createElement("button");
-    b.className = "sessitem";
-    b.type = "button";
-    b.innerHTML = `<b>${escapeHtml(s.title)}</b><span>${new Date(s.lastModified).toLocaleString()}</span>`;
-    b.onclick = () => attachSession(s.sessionId);
-    list.appendChild(b);
+    const row = document.createElement("div");
+    row.className = "sessrow";
+    const open = document.createElement("button");
+    open.className = "sessitem";
+    open.type = "button";
+    open.innerHTML = `<b>${escapeHtml(s.title)}</b><span>${new Date(s.lastModified).toLocaleString()}</span>`;
+    open.onclick = () => attachSession(s.sessionId);
+    const arch = document.createElement("button");
+    arch.className = "archbtn";
+    arch.type = "button";
+    arch.textContent = showArchived ? "Unarchive" : "Archive";
+    arch.onclick = () => {
+      send({ type: showArchived ? "unarchive" : "archive", sessionId: s.sessionId });
+      requestSessions(); // refresh the current view
+    };
+    row.append(open, arch);
+    list.appendChild(row);
   }
   if (!$("sessions").open) $("sessions").showModal();
 }
@@ -125,7 +145,7 @@ function newSession() {
 }
 
 function handleServer(m) {
-  if (m.type === "sessions") showSessions(m.items);
+  if (m.type === "sessions") showSessions(m.items, m.archived);
   else if (m.type === "history") renderHistory(m.messages);
   else if (m.type === "ready") { state.sessionId = m.sessionId; localStorage.setItem("sessionId", m.sessionId); }
   else if (m.type === "assistant") line("assistant", m.text);
@@ -203,6 +223,14 @@ window.addEventListener("load", async () => {
   $("status").addEventListener("click", () => { if (!dlg.open && !$("sessions").open) dlg.showModal(); });
   $("newsession").addEventListener("click", newSession);
   $("changerepo").addEventListener("click", () => { $("sessions").close(); dlg.showModal(); });
+  $("togglearchived").addEventListener("click", () => { showArchived = !showArchived; requestSessions(); });
+  // Reopen the session list mid-session to switch sessions without reconnecting.
+  $("sessionsbtn").addEventListener("click", () => {
+    if (!state.repo) { dlg.showModal(); return; }
+    showArchived = false;
+    if (ws && ws.readyState === ws.OPEN) requestSessions();
+    else openWs(() => requestSessions());
+  });
 
   $("connect").addEventListener("click", async (e) => {
     e.preventDefault();

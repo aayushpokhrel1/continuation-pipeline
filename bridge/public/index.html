@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <header><span id="status">disconnected</span></header>
+  <header><span id="status">disconnected</span><button id="sessionsbtn" type="button">Sessions</button></header>
   <main id="log"></main>
   <form id="composer">
     <input id="text" autocomplete="off" placeholder="Message the agent" />
@@ -28,6 +28,7 @@
     <div id="sesslist"></div>
     <div class="sessactions">
       <button id="newsession" type="button">+ New session</button>
+      <button id="togglearchived" type="button">Show archived</button>
       <button id="changerepo" type="button">Change repo</button>
     </div>
   </dialog>

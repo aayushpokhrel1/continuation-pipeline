@@ -1,9 +1,10 @@
 :root { color-scheme: light dark; --gap: 12px; }
 * { box-sizing: border-box; }
 body { margin: 0; font: 16px/1.4 system-ui, sans-serif; display: flex; flex-direction: column; height: 100dvh; }
-header { padding: 10px 16px; border-bottom: 1px solid #8884; }
+header { padding: 10px 16px; border-bottom: 1px solid #8884; display: flex; justify-content: space-between; align-items: center; }
 #status { cursor: pointer; }
 #status::after { content: " ⚙"; opacity: 0.5; }
+#sessionsbtn { font-size: 13px; padding: 5px 12px; }
 #log { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: var(--gap); }
 .line { padding: 8px 12px; border-radius: 10px; max-width: 90%; white-space: pre-wrap; word-break: break-word; }
 .user { align-self: flex-end; background: #2563eb; color: #fff; }
@@ -20,7 +21,9 @@ dialog label { display: block; margin-bottom: 12px; }
 dialog input, dialog select { width: 100%; padding: 10px; font-size: 16px; }
 #sessions { width: min(92vw, 480px); }
 #sesslist { max-height: 55vh; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
-.sessitem { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; text-align: left; padding: 10px 12px; font: inherit; }
+.sessrow { display: flex; gap: 6px; align-items: stretch; }
+.sessitem { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; flex: 1; text-align: left; padding: 10px 12px; font: inherit; }
 .sessitem span { font-size: 12px; opacity: 0.6; }
-.sessactions { display: flex; gap: 8px; }
-.sessactions button { flex: 1; padding: 10px; font-size: 15px; }
+.archbtn { padding: 0 12px; font-size: 13px; }
+.sessactions { display: flex; gap: 8px; flex-wrap: wrap; }
+.sessactions button { flex: 1; padding: 10px; font-size: 14px; }
