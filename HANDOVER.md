@@ -16,9 +16,9 @@ network. Two layers: a terminal path (SSH + tmux) and a custom mobile bridge.
 | Backbone: Tailscale tailnet | Done, live on this machine |
 | Terminal path: SSH + tmux + `cc` (Windows/WSL, plus Linux/macOS `setup.sh`) | Done, verified from iPhone (Termius) |
 | App path Stage 1: mobile bridge (SDK server + PWA, Ask-mode approvals) | Done, tested, live on the tailnet |
-| App path Stage 2, Slice A: approval modes (Ask/Auto-safe/YOLO) + Web Push | Done, server smoke-verified; phone push pending a real-device test |
-| App path Stage 2, Slice B (session list + resume) | Not started (see Next) |
-| App path Stage 2, Slice C (PWA polish + auto-start) | Not started |
+| App path Stage 2, Slice A: approval modes (Ask/Auto-safe/YOLO) + Web Push | Done; phone push confirmed (turn-finished). Approving-while-away needed Slice B |
+| App path Stage 2, Slice B: session continuity (registry, list+history, reconnect, deep-link, repo auto-discovery) | Done, server+client verified in-browser; phone background/reconnect pending a real-device test |
+| App path Stage 2, Slice C (PWA polish + auto-start) | Not started (see Next) |
 | App path Stage 3 | Not started |
 
 Both paths have been driven from a real iPhone. Stage 1 was verified with 13 passing
@@ -107,17 +107,37 @@ README.md                                      project overview
   approval or finish a turn to confirm the push arrives. Server side is smoke-verified
   (`/health`, `/vapid` 200 with token / 401 without, `/subscribe` 400 on bad JSON).
 
+## Slice B (shipped 2026-09-18): session continuity
+
+Design: `docs/superpowers/specs/2026-09-18-bridge-slice-b-design.md`. Approach 1: a
+`SessionManager` (`src/sessionManager.ts`) holds sessions keyed by SDK session id that
+outlive the WebSocket. `Session` (`src/session.ts`) is now attach/detach-able and fires
+pushes even when detached, so a pending approval waits server-side and `replayPending()`
+re-delivers it on reconnect. New protocol: `list`/`start`/`attach` from the client;
+`sessions`/`history`/`ready` from the server. Durable list + history come from the SDK's
+on-disk store (`listSessions({dir})` / `getSessionMessages(id,{dir})`, wrapped in
+`sdkSource.ts`). Client shows a per-repo session list, replays history on attach,
+auto-reconnects on `visibilitychange`, and deep-links from a push via `?session=<id>` (the
+SW puts the id in the notification and navigates to it). Repo auto-discovery: set
+`config.projectsDir` and `/repos` lists every git repo under it (already set locally to
+`/mnt/c/Users/aayus/dev/Projects`, so 15 repos show up).
+
+Verified in-browser against the live server: durable list, attach + history replay, new
+session, deep-link. **Pending on a real phone:** background the app during a turn, get the
+push, tap it, and confirm you land back in that session with the approval waiting (the
+whole point). Auto-reconnect-on-foreground is code-verified but not phone-tested.
+
 ## Next (remaining Stage 2)
 
-- **Slice B:** session list + resume (`listSessions` + `getSessionMessages` + `resume`), so
-  the app shows and re-enters past sessions. Sessions currently live only in the WS
-  connection's memory.
-- **Slice C:** installable PWA polish (icons, offline shell) + auto-start the bridge on boot.
+- **Slice C:** installable PWA polish (icons, offline shell) + auto-start the bridge on boot
+  (right now the dev server is started by hand; see "Running the bridge").
 
 Stage 3: multi-repo management, the terminal-session continuation source, inline diffs.
 
-Build workflow: Slice A was built with `/orchestrate` (deepseek for the modules, inline for
-the untestable client push), each task verify+commit through the WSL `npm run verify`.
+Build workflow: Slices A and B were built with `/orchestrate` (deepseek for the modules,
+inline for the untestable/browser-verified client), each task verify+commit through the WSL
+`npm run verify`. For the client, the design was written as near-final code in the brief and
+verified live in the in-app browser.
 
 Build workflow used here (per the global CLAUDE.md): delegate implementation to the
 pipeline (`deepseek` for modules, `free` for boilerplate) with review, keep design, SDK

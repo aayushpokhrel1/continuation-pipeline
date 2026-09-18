@@ -6,10 +6,13 @@ repo, streams the agent's output, and lets you approve or deny each tool from yo
 phone. It runs inside WSL and is reached over your Tailscale network, no public
 exposure.
 
-Shipped: start a session in a chosen repo, stream output, approve or deny tools, send
-follow ups, pick an approval mode (Ask / Auto-safe / YOLO), and get a Web Push
-notification when a tool needs approval or a turn finishes. One session per connection.
-Session resume comes next (Slice B); PWA polish and auto-start after that (Slice C).
+Shipped: pick a repo (configured or auto-discovered), see a durable list of that repo's
+past sessions, open one (with its history) or start a new one, stream output, approve or
+deny tools, pick an approval mode (Ask / Auto-safe / YOLO), and get a Web Push notification
+when a tool needs approval or a turn finishes. Sessions live in a server-side registry that
+outlives the socket, so a pending approval waits while the phone is backgrounded and is
+re-delivered on reconnect; the app auto-reconnects when foregrounded and a push deep-links
+into its session. PWA polish and auto-start on boot come next (Slice C).
 
 ## Prerequisites
 
@@ -30,7 +33,9 @@ cp config.example.json config.json
 
 `config.json` holds your bearer token and is gitignored. Never commit it. Each repo
 is `{ "name": "...", "path": "/mnt/c/..." }`; the agent runs with that path as its
-working directory.
+working directory. Optionally set `"projectsDir": "/mnt/c/.../Projects"` and every git repo
+directly under it is offered too (configured repos win on a path clash), so new projects
+appear without editing config.
 
 ### Web Push (optional)
 
@@ -78,11 +83,16 @@ only, with a real certificate. Nothing is exposed to the public internet.
 2. In the setup dialog, enter that same origin and your token, pick a repo and an
    approval mode (Ask / Auto-safe / YOLO), Connect. If Web Push is configured, you get
    a notification-permission prompt on Connect; allow it to receive pushes.
-3. Send a message. In Ask mode, when the agent wants a tool an approval card appears
+3. You land on the repo's session list: tap a past session to reopen it (its history
+   loads), or "+ New session" to start fresh. Tap the header (gear) any time to change
+   repo/mode.
+4. Send a message. In Ask mode, when the agent wants a tool an approval card appears
    with Allow and Deny; tap Allow and the result streams back. Auto-safe auto-approves
    read-only tools (Read/Glob/Grep) and prompts for the rest; YOLO runs everything
    without prompting.
-4. Share sheet, Add to Home Screen, to install it as an app (required for iOS push).
+5. Share sheet, Add to Home Screen, to install it as an app (required for iOS push).
+   Backgrounding closes the socket; when you reopen (or tap a push) the app reconnects
+   and drops you back into the session, with any pending approval waiting.
 
 ## Test and typecheck
 
@@ -100,11 +110,14 @@ src/approvals.ts    async approval registry (allow/deny promises)
 src/protocol.ts     WebSocket message types (client <-> server)
 src/source.ts       SessionSource interface (the seam for Stage 2/3 sources)
 src/session.ts      one turn: source + approvals + streamed events
-src/sdkSource.ts    Agent SDK implementation of SessionSource (maps approval mode -> SDK options)
+src/sdkSource.ts    Agent SDK impl of SessionSource (approval mode -> SDK options; listSessions/getHistory)
+src/session.ts      one session: attach/detach-able, owns approvals, survives socket loss
+src/sessionManager.ts  registry of live sessions keyed by SDK session id (outlives connections)
+src/repos.ts        configured repos + auto-discovered git repos under projectsDir
 src/push.ts         Web Push: VAPID send + subscription store (PushLike seam)
-src/server.ts       HTTP (health, repos, vapid, subscribe, static) + WebSocket
+src/server.ts       HTTP (health, repos, vapid, subscribe, static) + WebSocket (list/start/attach/user/approve)
 src/index.ts        entrypoint
-public/             the PWA (sw.js handles push + notification clicks)
+public/             the PWA (session list, attach + history, reconnect; sw.js push + deep-link)
 ```
 
 ## Notes
@@ -113,6 +126,9 @@ public/             the PWA (sw.js handles push + notification clicks)
   Auto-safe (`allowedTools` auto-approves Read/Glob/Grep, the rest prompt), YOLO
   (`bypassPermissions`, nothing prompts). A denied tool returns "Denied from phone".
   YOLO runs any tool the agent picks without asking; only use it on a trusted run.
-- One session per WebSocket connection. Reconnecting starts a fresh session.
+- Sessions live in a server-side registry, not the socket: backgrounding the phone (which
+  iOS uses to kill the WebSocket) does not lose the turn. On reconnect the app re-attaches
+  and any pending approval is re-sent. Sessions are kept for the process lifetime (no idle
+  eviction yet).
 - The server binds to 127.0.0.1 on purpose; Tailscale `serve` is what exposes it to
   the tailnet, so there is no open port on any other interface.

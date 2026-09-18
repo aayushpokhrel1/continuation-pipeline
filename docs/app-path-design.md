@@ -98,7 +98,11 @@ one place that knows the SDK permission shape).
   from the Connect gesture and shows notifications via the service worker. `web-push` handles
   VAPID crypto. Push is optional: absent VAPID config, the endpoints 404 and the bridge still
   runs.
-- **Stage 2, Slice B (next):** session list + resume (`listSessions` / `getSessionMessages`),
-  so the app shows and re-enters past sessions.
+- **Stage 2, Slice B (shipped):** session continuity (approach 1). A `SessionManager` holds
+  sessions that outlive the WebSocket, so a pending approval waits server-side and is
+  re-delivered when the phone reconnects (iOS suspends the socket on background). Durable
+  per-repo session list + history replay via the SDK's on-disk store (`listSessions` /
+  `getSessionMessages`), auto-reconnect on foreground, push deep-link (`?session=<id>`), and
+  repo auto-discovery under `config.projectsDir`.
 - **Stage 2, Slice C:** installable PWA polish (icons, offline shell) + auto-start on boot.
 - **Stage 3:** multi-repo management, terminal-continuation source (C), inline diff viewing.

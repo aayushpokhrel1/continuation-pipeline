@@ -1,7 +1,8 @@
 # Bridge Stage 2 Slice B: session continuity (design)
 
-Status: approved approach, ready to build. Approach 1 (server-side session registry
-decoupled from the socket). Real-device testing of Slice A showed that iOS suspends a
+Status: SHIPPED 2026-09-18 (server + client verified in-browser; phone confirmation of
+background/reconnect pending). Approach 1 (server-side session registry decoupled from the
+socket). Real-device testing of Slice A showed that iOS suspends a
 backgrounded PWA and kills the WebSocket, so the current one-socket-per-session model
 loses the in-flight turn and any pending approval. Slice B makes push actionable: get
 pinged, come back, and the turn is still waiting.
