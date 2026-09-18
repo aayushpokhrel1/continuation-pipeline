@@ -2,6 +2,8 @@
 * { box-sizing: border-box; }
 body { margin: 0; font: 16px/1.4 system-ui, sans-serif; display: flex; flex-direction: column; height: 100dvh; }
 header { padding: 10px 16px; border-bottom: 1px solid #8884; }
+#status { cursor: pointer; }
+#status::after { content: " ⚙"; opacity: 0.5; }
 #log { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: var(--gap); }
 .line { padding: 8px 12px; border-radius: 10px; max-width: 90%; white-space: pre-wrap; word-break: break-word; }
 .user { align-self: flex-end; background: #2563eb; color: #fff; }

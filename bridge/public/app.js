@@ -58,14 +58,17 @@ async function subscribePush(origin, token) {
   }
 }
 
-async function loadRepos(origin, token) {
+async function loadRepos(origin, token, selected) {
   const res = await fetch(origin + "/repos", { headers: { Authorization: "Bearer " + token } });
   if (!res.ok) throw new Error("auth failed");
   const { repos } = await res.json();
-  $("repo").innerHTML = repos.map((r) => `<option>${r}</option>`).join("");
+  $("repo").innerHTML = repos
+    .map((r) => `<option${r === selected ? " selected" : ""}>${r}</option>`)
+    .join("");
 }
 
 function connect(origin, token, repo, mode) {
+  if (ws) { try { ws.close(); } catch {} }
   const wsUrl = origin.replace(/^http/, "ws") + "/ws";
   ws = new WebSocket(wsUrl, ["bridge", token]);
   ws.onopen = () => { $("status").textContent = "connected"; ws.send(JSON.stringify({ type: "start", repo, mode })); };
@@ -89,22 +92,55 @@ $("composer").addEventListener("submit", (e) => {
   $("text").value = "";
 });
 
+function startSession(o, t, repo, mode) {
+  connect(o, t, repo, mode);
+  void subscribePush(o, t);
+}
+
 window.addEventListener("load", async () => {
+  const dlg = $("setup");
   const origin = localStorage.getItem("origin") || location.origin;
   const token = localStorage.getItem("token") || "";
+  const savedRepo = localStorage.getItem("repo") || "";
+  const savedMode = localStorage.getItem("mode") || "ask";
   $("origin").value = origin;
   $("token").value = token;
-  const dlg = $("setup");
-  if (token) { try { await loadRepos(origin, token); } catch {} }
-  dlg.showModal();
+  $("mode").value = savedMode;
+
+  // Fill the repo dropdown up front so it is pickable before connecting.
+  let reposLoaded = false;
+  if (token) {
+    try { await loadRepos(origin, token, savedRepo); reposLoaded = true; } catch {}
+  }
+
+  // Reload repos whenever the token changes, so the list fills without connecting.
+  $("token").addEventListener("change", async () => {
+    const o = $("origin").value.trim(), t = $("token").value.trim();
+    if (!t) return;
+    try { await loadRepos(o, t, $("repo").value); reposLoaded = true; }
+    catch { $("repo").innerHTML = ""; reposLoaded = false; }
+  });
+
+  // Tap the header to reopen settings later (switch repo/mode, re-enter token).
+  $("status").addEventListener("click", () => { if (!dlg.open) dlg.showModal(); });
+
   $("connect").addEventListener("click", async (e) => {
     e.preventDefault();
     const o = $("origin").value.trim(), t = $("token").value.trim();
+    if (!reposLoaded) {
+      try { await loadRepos(o, t, savedRepo); reposLoaded = true; }
+      catch { line("error", "could not load repos, check the token"); return; }
+    }
+    const repo = $("repo").value, mode = $("mode").value;
     localStorage.setItem("origin", o); localStorage.setItem("token", t);
-    try { await loadRepos(o, t); } catch { line("error", "could not load repos"); return; }
-    connect(o, t, $("repo").value, $("mode").value);
+    localStorage.setItem("repo", repo); localStorage.setItem("mode", mode);
     dlg.close();
-    void subscribePush(o, t);
+    startSession(o, t, repo, mode);
   });
+
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+
+  // Returning visit with everything saved: connect straight away, skip the dialog.
+  if (token && reposLoaded && savedRepo) startSession(origin, token, savedRepo, savedMode);
+  else dlg.showModal();
 });
