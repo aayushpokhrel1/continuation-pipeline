@@ -104,5 +104,8 @@ one place that knows the SDK permission shape).
   per-repo session list + history replay via the SDK's on-disk store (`listSessions` /
   `getSessionMessages`), auto-reconnect on foreground, push deep-link (`?session=<id>`), and
   repo auto-discovery under `config.projectsDir`.
-- **Stage 2, Slice C:** installable PWA polish (icons, offline shell) + auto-start on boot.
+- **Stage 2, Slice C (shipped):** installable PWA (lettermark icons + apple-touch, manifest,
+  theme-color), offline app-shell cache in the service worker (network-first), and logon
+  auto-start via a Windows Scheduled Task (`scripts/setup-autostart.ps1` +
+  `scripts/start-bridge.sh`). Stage 2 complete.
 - **Stage 3:** multi-repo management, terminal-continuation source (C), inline diff viewing.

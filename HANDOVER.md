@@ -18,7 +18,7 @@ network. Two layers: a terminal path (SSH + tmux) and a custom mobile bridge.
 | App path Stage 1: mobile bridge (SDK server + PWA, Ask-mode approvals) | Done, tested, live on the tailnet |
 | App path Stage 2, Slice A: approval modes (Ask/Auto-safe/YOLO) + Web Push | Done; phone push confirmed (turn-finished). Approving-while-away needed Slice B |
 | App path Stage 2, Slice B: session continuity (registry, list+history, reconnect, deep-link, repo auto-discovery) | Done, server+client verified in-browser; phone background/reconnect pending a real-device test |
-| App path Stage 2, Slice C (PWA polish + auto-start) | Not started (see Next) |
+| App path Stage 2, Slice C: PWA polish (icons, offline shell) + auto-start on boot | Done; run bridge/scripts/setup-autostart.ps1 once to enable logon auto-start |
 | App path Stage 3 | Not started |
 
 Both paths have been driven from a real iPhone. Stage 1 was verified with 13 passing
@@ -127,12 +127,24 @@ session, deep-link. **Pending on a real phone:** background the app during a tur
 push, tap it, and confirm you land back in that session with the approval waiting (the
 whole point). Auto-reconnect-on-foreground is code-verified but not phone-tested.
 
-## Next (remaining Stage 2)
+## Slice C (shipped 2026-09-18): PWA polish + auto-start
 
-- **Slice C:** installable PWA polish (icons, offline shell) + auto-start the bridge on boot
-  (right now the dev server is started by hand; see "Running the bridge").
+- Icons: `bridge/public/icon.svg` (lettermark) + `icon-180.png` (iOS apple-touch), wired into
+  the manifest (`any maskable`) and `<link rel="apple-touch-icon">` + `theme-color`. To
+  regenerate PNGs from the SVG there is no local converter; the SVG was rasterized via the
+  in-app browser canvas (`fetch('/icon.svg')` -> Image -> canvas -> toDataURL). Server MIME map
+  now includes `.svg`/`.png`.
+- Offline shell: `sw.js` caches the shell and serves it **network-first** (fresh online,
+  available offline, and this also fixes the "reload to get the new client" staleness), while
+  bypassing `/ws /repos /vapid /subscribe /health`.
+- Auto-start: `bridge/scripts/start-bridge.sh` (portable, idempotent) + `setup-autostart.ps1`
+  registers a logon Scheduled Task `ContinuationBridge`. NOT auto-registered by Claude (it's a
+  standing machine change); run the .ps1 once to enable.
 
-Stage 3: multi-repo management, the terminal-session continuation source, inline diffs.
+## Next: Stage 3
+
+Multi-repo management, the terminal-session continuation source (PTY hybrid), inline diff
+viewing. Stage 2 (Slices A/B/C) is complete.
 
 Build workflow: Slices A and B were built with `/orchestrate` (deepseek for the modules,
 inline for the untestable/browser-verified client), each task verify+commit through the WSL

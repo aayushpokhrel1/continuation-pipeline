@@ -76,6 +76,22 @@ tailscale serve status
 This serves the bridge at `https://<your-host>.<tailnet>.ts.net/` on the tailnet
 only, with a real certificate. Nothing is exposed to the public internet.
 
+## Auto-start on boot (Windows)
+
+So the bridge is always up (no hand-starting), register a logon Scheduled Task that runs it
+in WSL. From PowerShell (no admin needed):
+
+```powershell
+.\bridge\scripts\setup-autostart.ps1
+```
+
+This registers a task named `ContinuationBridge` that runs `bridge/scripts/start-bridge.sh`
+(idempotent: it no-ops if the bridge is already up) at each logon. Start it now without
+logging out with `Start-ScheduledTask -TaskName ContinuationBridge`; remove it with
+`Unregister-ScheduledTask -TaskName ContinuationBridge -Confirm:$false`. Tailscale `serve` is
+already persistent (`--bg`), so nothing else is needed after a reboot. `start-bridge.sh` also
+works on its own on Linux/macOS if you want a login-item / systemd unit there.
+
 ## Use it from the phone
 
 1. On the iPhone (already on the tailnet), open Safari to
