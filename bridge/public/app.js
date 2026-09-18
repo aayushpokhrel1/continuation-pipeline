@@ -26,6 +26,38 @@ function approvalCard(id, name, input) {
   log.scrollTop = log.scrollHeight;
 }
 
+function urlB64ToUint8Array(b64) {
+  const pad = "=".repeat((4 - (b64.length % 4)) % 4);
+  const raw = atob((b64 + pad).replace(/-/g, "+").replace(/_/g, "/"));
+  return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
+}
+
+// Subscribe this device to Web Push. Best-effort: any failure (push not configured,
+// permission denied, unsupported browser) is logged and ignored so chat still works.
+// Must run from a user gesture (the Connect click) for the iOS permission prompt.
+async function subscribePush(origin, token) {
+  try {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+    const auth = { Authorization: "Bearer " + token };
+    const res = await fetch(origin + "/vapid", { headers: auth });
+    if (!res.ok) return; // 404 = push not configured on the server
+    const { publicKey } = await res.json();
+    if ((await Notification.requestPermission()) !== "granted") return;
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlB64ToUint8Array(publicKey),
+    });
+    await fetch(origin + "/subscribe", {
+      method: "POST",
+      headers: { ...auth, "content-type": "application/json" },
+      body: JSON.stringify(sub),
+    });
+  } catch (err) {
+    console.warn("push subscribe failed", err);
+  }
+}
+
 async function loadRepos(origin, token) {
   const res = await fetch(origin + "/repos", { headers: { Authorization: "Bearer " + token } });
   if (!res.ok) throw new Error("auth failed");
@@ -72,6 +104,7 @@ window.addEventListener("load", async () => {
     try { await loadRepos(o, t); } catch { line("error", "could not load repos"); return; }
     connect(o, t, $("repo").value, $("mode").value);
     dlg.close();
+    void subscribePush(o, t);
   });
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 });
