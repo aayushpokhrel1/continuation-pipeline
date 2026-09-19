@@ -1,6 +1,7 @@
 // Service worker: installable shell + offline cache + Web Push (Stage 2, Slice C).
-const CACHE = "continuation-v1";
-const SHELL = ["./", "index.html", "app.js", "styles.css", "manifest.webmanifest", "icon.svg", "icon-180.png"];
+const CACHE = "continuation-v2";
+const SHELL = ["./", "index.html", "app.js", "styles.css", "manifest.webmanifest", "icon.svg", "icon-180.png",
+  "vendor/xterm.js", "vendor/xterm.css", "vendor/addon-fit.js"];
 // Dynamic endpoints must always hit the network (never cached/served stale).
 const BYPASS = ["/ws", "/repos", "/vapid", "/subscribe", "/health"];
 

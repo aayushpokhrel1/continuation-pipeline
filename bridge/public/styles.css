@@ -22,6 +22,11 @@ pre.diff span { display: block; white-space: pre; }
 pre.diff .add { color: #16a34a; background: #16a34a1a; }
 pre.diff .del { color: #dc2626; background: #dc26261a; }
 pre.diff .more { opacity: 0.6; font-style: italic; margin-top: 4px; }
+#termview { flex: 1; display: flex; flex-direction: column; min-height: 0; background: #000; }
+#termview[hidden], #log[hidden], #composer[hidden] { display: none; }
+#termhdr { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-bottom: 1px solid #8884; background: #111; color: #eee; }
+#termhdr #termname { font-size: 13px; opacity: 0.75; }
+#term { flex: 1; min-height: 0; padding: 4px 6px; }
 #composer { display: flex; gap: 8px; padding: 12px; border-top: 1px solid #8884; padding-bottom: max(12px, env(safe-area-inset-bottom)); }
 #composer input { flex: 1; padding: 12px; font-size: 16px; }
 dialog label { display: block; margin-bottom: 12px; }

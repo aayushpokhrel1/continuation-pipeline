@@ -7,11 +7,16 @@
   <link rel="manifest" href="manifest.webmanifest" />
   <meta name="theme-color" content="#111111" />
   <link rel="apple-touch-icon" href="icon-180.png" />
+  <link rel="stylesheet" href="vendor/xterm.css" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <header><span id="status">disconnected</span><button id="sessionsbtn" type="button">Sessions</button></header>
   <main id="log"></main>
+  <section id="termview" hidden>
+    <div id="termhdr"><button id="termback" type="button">← Back</button><span id="termname"></span></div>
+    <div id="term"></div>
+  </section>
   <form id="composer">
     <input id="text" autocomplete="off" placeholder="Message the agent" />
     <button type="submit">Send</button>
@@ -32,9 +37,12 @@
     <div class="sessactions">
       <button id="newsession" type="button">+ New session</button>
       <button id="togglearchived" type="button">Show archived</button>
+      <button id="terminalbtn" type="button">Terminal</button>
       <button id="serverbtn" type="button">Server</button>
     </div>
   </dialog>
+  <script src="vendor/xterm.js"></script>
+  <script src="vendor/addon-fit.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

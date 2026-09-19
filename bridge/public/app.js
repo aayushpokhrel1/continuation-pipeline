@@ -5,6 +5,7 @@ let inSession = false; // true once we've attached/started a session this run
 let showArchived = false; // which view the session list is showing
 let allMode = true; // sessions dialog shows the cross-repo overview vs a single repo
 let lastRepos = []; // repo summaries from the most recent overview, for the repo bar
+let term = null, fit = null; // xterm.js terminal + fit addon, lazily created
 const state = { origin: "", token: "", repo: "", mode: "ask", sessionId: null };
 
 function line(cls, text) {
@@ -238,9 +239,53 @@ function newSession() {
   closeDialogs();
 }
 
+// --- Terminal continuation: a live xterm bound to a tmux session over the socket. ---
+function fitTerminal() {
+  if (!term || $("termview").hidden) return;
+  try { fit.fit(); } catch {}
+  send({ type: "termResize", cols: term.cols, rows: term.rows });
+}
+
+function openTerminalView(name) {
+  $("termname").textContent = name;
+  $("log").hidden = true;
+  $("composer").hidden = true;
+  $("termview").hidden = false;
+  if (!term) {
+    term = new Terminal({ fontSize: 13, cursorBlink: true, convertEol: false });
+    fit = new FitAddon.FitAddon();
+    term.loadAddon(fit);
+    term.open($("term"));
+    term.onData((d) => send({ type: "termInput", data: d }));
+    term.onResize(({ cols, rows }) => send({ type: "termResize", cols, rows }));
+  } else {
+    term.reset();
+  }
+  fitTerminal();
+  term.focus();
+}
+
+// Tear down the terminal UI without telling the server (used when the server said it exited).
+function hideTerminalView() {
+  $("termview").hidden = true;
+  $("log").hidden = false;
+  $("composer").hidden = false;
+  if (term) { term.dispose(); term = null; fit = null; }
+}
+
+function onTerms(names) {
+  const name = names.includes("continuation") ? "continuation" : names[0];
+  if (!name) { line("error", "No terminal running. Run `cc` on the workstation first."); return; }
+  openTerminalView(name);
+  send({ type: "termAttach", name });
+}
+
 function handleServer(m) {
   if (m.type === "sessions") showSessions(m.items, m.archived);
   else if (m.type === "sessionsAll") showOverview(m.items, m.repos);
+  else if (m.type === "terms") onTerms(m.names);
+  else if (m.type === "termOut") { if (term) term.write(m.data); }
+  else if (m.type === "termExit") { hideTerminalView(); line("meta", "terminal detached"); }
   else if (m.type === "history") renderHistory(m.messages);
   else if (m.type === "ready") { state.sessionId = m.sessionId; localStorage.setItem("sessionId", m.sessionId); }
   else if (m.type === "assistant") line("assistant", m.text);
@@ -318,6 +363,13 @@ window.addEventListener("load", async () => {
   $("status").addEventListener("click", () => { if (!dlg.open && !$("sessions").open) dlg.showModal(); });
   $("newsession").addEventListener("click", newSession);
   $("serverbtn").addEventListener("click", () => { $("sessions").close(); dlg.showModal(); });
+  $("terminalbtn").addEventListener("click", () => {
+    $("sessions").close();
+    if (ws && ws.readyState === ws.OPEN) send({ type: "termList" });
+    else openWs(() => send({ type: "termList" }));
+  });
+  $("termback").addEventListener("click", () => { send({ type: "termDetach" }); hideTerminalView(); });
+  window.addEventListener("resize", fitTerminal);
   $("togglearchived").addEventListener("click", () => { showArchived = !showArchived; requestSessions(); });
   // Reopen the sessions dialog mid-session to switch repo/session without reconnecting.
   $("sessionsbtn").addEventListener("click", () => {
