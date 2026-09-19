@@ -3,6 +3,8 @@ const log = $("log");
 let ws;
 let inSession = false; // true once we've attached/started a session this run
 let showArchived = false; // which view the session list is showing
+let allMode = true; // sessions dialog shows the cross-repo overview vs a single repo
+let lastRepos = []; // repo summaries from the most recent overview, for the repo bar
 const state = { origin: "", token: "", repo: "", mode: "ask", sessionId: null };
 
 function line(cls, text) {
@@ -133,15 +135,65 @@ function renderHistory(messages) {
 }
 
 function requestSessions() {
-  send({ type: "list", repo: state.repo, archived: showArchived });
+  if (allMode) send({ type: "listAll" });
+  else send({ type: "list", repo: state.repo, archived: showArchived });
+}
+
+// The repo switcher: an "All repos" chip plus one chip per repo (live-dot, recency-sorted
+// as the server returned them). Selecting one re-lists over the open socket, no reconnect.
+function renderRepoBar() {
+  const bar = $("repobar");
+  bar.innerHTML = "";
+  const chip = (label, active, live, onClick) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "repochip" + (active ? " active" : "") + (live ? " live" : "");
+    b.textContent = label;
+    b.onclick = onClick;
+    return b;
+  };
+  bar.appendChild(chip("All repos", allMode, false, () => { allMode = true; requestSessions(); }));
+  for (const r of lastRepos) {
+    bar.appendChild(chip(r.name, !allMode && state.repo === r.name, r.live, () => {
+      allMode = false; showArchived = false; state.repo = r.name;
+      localStorage.setItem("repo", r.name);
+      requestSessions();
+    }));
+  }
+}
+
+// Cross-repo overview: every repo's active sessions in one list, each tagged with its repo.
+function showOverview(items, repos) {
+  allMode = true;
+  lastRepos = repos;
+  $("sesstitle").textContent = "All sessions";
+  $("togglearchived").style.display = "none";
+  renderRepoBar();
+  const list = $("sesslist");
+  list.innerHTML = items.length ? "" : "<p>No sessions yet. Pick a repo and start one.</p>";
+  for (const s of items) {
+    const row = document.createElement("div");
+    row.className = "sessrow";
+    const open = document.createElement("button");
+    open.className = "sessitem";
+    open.type = "button";
+    open.innerHTML = `<b>${escapeHtml(s.title)}</b><span><span class="repochip">${escapeHtml(s.repo)}</span> ${new Date(s.lastModified).toLocaleString()}</span>`;
+    open.onclick = () => { state.repo = s.repo; localStorage.setItem("repo", s.repo); attachSession(s.sessionId); };
+    row.append(open);
+    list.appendChild(row);
+  }
+  if (!$("sessions").open) $("sessions").showModal();
 }
 
 function showSessions(items, archived) {
+  allMode = false;
   showArchived = !!archived;
   const list = $("sesslist");
   list.innerHTML = "";
   $("sesstitle").textContent = `${showArchived ? "Archived in" : "Sessions in"} ${state.repo}`;
+  $("togglearchived").style.display = "";
   $("togglearchived").textContent = showArchived ? "Show active" : "Show archived";
+  renderRepoBar();
   if (!items.length) {
     list.innerHTML = `<p>${showArchived ? "No archived sessions." : "No sessions. Start a new one."}</p>`;
   }
@@ -177,6 +229,7 @@ function attachSession(sessionId) {
 }
 
 function newSession() {
+  if (!state.repo) { $("sesstitle").textContent = "Pick a repo first"; return; }
   state.sessionId = null;
   inSession = true;
   localStorage.removeItem("sessionId");
@@ -187,6 +240,7 @@ function newSession() {
 
 function handleServer(m) {
   if (m.type === "sessions") showSessions(m.items, m.archived);
+  else if (m.type === "sessionsAll") showOverview(m.items, m.repos);
   else if (m.type === "history") renderHistory(m.messages);
   else if (m.type === "ready") { state.sessionId = m.sessionId; localStorage.setItem("sessionId", m.sessionId); }
   else if (m.type === "assistant") line("assistant", m.text);
@@ -207,11 +261,11 @@ function openWs(onOpen) {
 }
 
 // Connect from the setup dialog. attachTo != null => go straight into that session
-// (push deep-link); otherwise show the session list for the repo.
+// (push deep-link); otherwise show the cross-repo overview.
 function connect(attachTo) {
   openWs(() => {
     if (attachTo) attachSession(attachTo);
-    else send({ type: "list", repo: state.repo });
+    else { allMode = true; send({ type: "listAll" }); }
   });
   void subscribePush(state.origin, state.token);
 }
@@ -228,11 +282,11 @@ $("composer").addEventListener("submit", (e) => {
 // Reconnect when the app is foregrounded (iOS suspends the socket in the background).
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState !== "visible") return;
-  if (!state.token || !state.repo) return;
+  if (!state.token) return;
   if (ws && ws.readyState === ws.OPEN) return;
   openWs(() => {
     if (inSession && state.sessionId) send({ type: "attach", sessionId: state.sessionId, repo: state.repo, mode: state.mode });
-    else send({ type: "list", repo: state.repo });
+    else { allMode = true; send({ type: "listAll" }); }
   });
 });
 
@@ -263,12 +317,12 @@ window.addEventListener("load", async () => {
 
   $("status").addEventListener("click", () => { if (!dlg.open && !$("sessions").open) dlg.showModal(); });
   $("newsession").addEventListener("click", newSession);
-  $("changerepo").addEventListener("click", () => { $("sessions").close(); dlg.showModal(); });
+  $("serverbtn").addEventListener("click", () => { $("sessions").close(); dlg.showModal(); });
   $("togglearchived").addEventListener("click", () => { showArchived = !showArchived; requestSessions(); });
-  // Reopen the session list mid-session to switch sessions without reconnecting.
+  // Reopen the sessions dialog mid-session to switch repo/session without reconnecting.
   $("sessionsbtn").addEventListener("click", () => {
-    if (!state.repo) { dlg.showModal(); return; }
-    showArchived = false;
+    if (!state.token) { dlg.showModal(); return; }
+    allMode = true; showArchived = false;
     if (ws && ws.readyState === ws.OPEN) requestSessions();
     else openWs(() => requestSessions());
   });
