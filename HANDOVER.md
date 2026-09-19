@@ -21,7 +21,7 @@ network. Two layers: a terminal path (SSH + tmux) and a custom mobile bridge.
 | App path Stage 2, Slice C: PWA polish (icons, offline shell) + auto-start on boot | Done; run bridge/scripts/setup-autostart.ps1 once to enable logon auto-start |
 | App path Stage 3: inline diff viewing (Edit/Write/MultiEdit in chat, approvals, history) | Done, browser-verified |
 | App path Stage 3: multi-repo management (cross-repo overview + inline repo switch) | Done, browser-verified |
-| App path Stage 3: terminal-continuation (PTY hybrid) | Not started |
+| App path Stage 3: terminal-continuation (PTY hybrid) | Done, client browser-verified; live mirror pending a real-device test |
 
 Both paths have been driven from a real iPhone. Stage 1 was verified with 13 passing
 tests, a clean typecheck, a live SDK smoke test, and the tailnet HTTPS endpoint.
@@ -94,6 +94,15 @@ README.md                                      project overview
 - Node file-URL paths: use `fileURLToPath`, not `.pathname` (this repo dir has a space).
 - Agent SDK 0.3.274: `canUseTool(toolName, input, options) => PermissionResult`,
   `{behavior:'allow'|'deny'}`, `session_id` on every message.
+- `tmux new-session` needs a controlling TTY: it fails ("open terminal failed") when run from a
+  non-TTY context (the bridge process, or `wsl -- bash -lc`). So the bridge only ever ATTACHES
+  to a session the user created with `cc` in a real terminal, via `script` (which supplies a
+  PTY), never creates one. Also: a tmux server started inside one `wsl -- bash -lc` call does not
+  survive into a separate `wsl` call, which makes ad-hoc multi-call tmux spikes flaky (not a
+  design issue: the real bridge is one long-lived process).
+- HTML `hidden` attribute is overridden by an explicit `display` rule: `#composer`/`#log` set
+  `display:flex`, so `el.hidden = true` did nothing until a `#composer[hidden]{display:none}`
+  rule (higher specificity) was added. Watch this when toggling flex elements.
 - Run `npm run verify`/`test`/`dev` through WSL, not Windows. `node_modules/.bin/*` are
   POSIX symlinks created in WSL, so `tsc`/`tsx` are "not recognized" on the Windows side.
   The delegate `--verify` runs on Windows/cmd, so it can't run the bridge's verify: after a
@@ -173,11 +182,29 @@ NAME (server maps name->path), so overview rows attach with `s.repo`. Slice B al
 the "concurrent" part (SessionManager keeps every repo's sessions live and pushes while
 detached); split-screen concurrent viewing is deliberately deferred (YAGNI on a phone).
 
-## Next: rest of Stage 3
+## Stage 3: terminal continuation / PTY hybrid (shipped 2026-09-19)
 
-Terminal-session continuation source (PTY hybrid, approach C): attach the phone to the live
-`claude` TUI / tmux session. The heaviest piece (PTY spawn, ANSI streaming, xterm.js, a new
-SessionSource); needs its own design pass before build.
+Design: `docs/superpowers/specs/2026-09-19-bridge-terminal-continuation-design.md`. Attaches the
+phone to the live tmux `continuation` session (the one `cc` runs). `src/terminal.ts`
+`attachTerminal(name, onData, onExit)` spawns `script -qfc "tmux attach -t <name>" /dev/null`
+so tmux runs as a real PTY client with NO node-pty: the child's stdout is the terminal mirror,
+stdin is keystrokes; `resize` uses `tmux resize-window`; `listTerminals` runs
+`tmux list-sessions`. Name is charset-guarded (`^[A-Za-z0-9_.-]+$`) and must be in the
+`listTerminals` allowlist before attach (command-injection defense). New
+`termList`/`termAttach`/`termInput`/`termResize`/`termDetach` (client) and
+`terms`/`termOut`/`termExit` (server) protocol; a dropped socket kills the child. Client: a
+Terminal button opens a full-pane xterm.js (vendored under `public/vendor/`, offline-cached, SW
+cache bumped to v2) streaming `termOut` and sending keystrokes; Back detaches; "run cc first"
+when no session. This is a raw remote terminal (full shell, no structured approval gate) behind
+the same bearer-token + Tailscale perimeter as the SSH path.
+
+**Pending on a real phone:** open Terminal against a live `cc`/claude `continuation` session and
+confirm the TUI mirrors and keystrokes/approvals work (client render + plumbing are
+browser-verified with simulated output; the true live mirror is untested).
+
+Stage 3 (inline diffs, multi-repo, terminal continuation) is complete. Possible Stage 4 ideas:
+concurrent-terminal support, terminal scrollback replay on reconnect, session creation from the
+phone.
 
 Build workflow: Slices A and B were built with `/orchestrate` (deepseek for the modules,
 inline for the untestable/browser-verified client), each task verify+commit through the WSL
