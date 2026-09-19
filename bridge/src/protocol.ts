@@ -11,7 +11,12 @@ export type ClientMessage =
   | { type: "user"; text: string }
   | { type: "approve"; id: string; decision: Decision }
   | { type: "archive"; sessionId: string }
-  | { type: "unarchive"; sessionId: string };
+  | { type: "unarchive"; sessionId: string }
+  | { type: "termList" }
+  | { type: "termAttach"; name: string }
+  | { type: "termInput"; data: string }
+  | { type: "termResize"; cols: number; rows: number }
+  | { type: "termDetach" };
 
 export type ServerMessage =
   | { type: "ready"; sessionId: string }
@@ -22,4 +27,7 @@ export type ServerMessage =
   | { type: "tool"; name: string; input: unknown; diff?: DiffModel }
   | { type: "approval"; id: string; name: string; input: unknown; diff?: DiffModel }
   | { type: "turn_done" }
+  | { type: "terms"; names: string[] }
+  | { type: "termOut"; data: string }
+  | { type: "termExit" }
   | { type: "error"; message: string };

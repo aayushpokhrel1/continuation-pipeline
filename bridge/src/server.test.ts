@@ -73,6 +73,28 @@ test("lists sessions for a repo", async () => {
   assert.deepEqual(items, [{ sessionId: "s1", title: "demo session", lastModified: 1 }]);
 });
 
+test("lists terminals", async () => {
+  const server = createServer(config, fakeSource);
+  await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+  const port = (server.address() as AddressInfo).port;
+
+  const ws = new WebSocket(`ws://127.0.0.1:${port}/ws`, ["bridge", "secret"]);
+  const m = await new Promise<any>((resolve, reject) => {
+    ws.on("open", () => ws.send(JSON.stringify({ type: "termList" })));
+    ws.on("message", (data) => {
+      const msg = JSON.parse(data.toString());
+      if (msg.type === "terms") resolve(msg);
+      if (msg.type === "error") reject(new Error(msg.message));
+    });
+    ws.on("error", reject);
+  });
+
+  ws.close();
+  await new Promise<void>((r) => server.close(() => r()));
+
+  assert.ok(Array.isArray(m.names));
+});
+
 test("lists all sessions across repos", async () => {
   const server = createServer(config, fakeSource);
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));

@@ -12,6 +12,7 @@ import { ArchiveStore } from "./archive.ts";
 import type { Session } from "./session.ts";
 import type { SessionSource } from "./source.ts";
 import type { ClientMessage, ServerMessage } from "./protocol.ts";
+import { attachTerminal, listTerminals, type TermHandle } from "./terminal.ts";
 import type { PushLike } from "./push.ts";
 
 const PUBLIC_DIR = fileURLToPath(new URL("../public/", import.meta.url));
@@ -84,6 +85,7 @@ export function createServer(config: Config, source: SessionSource, push?: PushL
     if (!checkToken(config.token, token)) { ws.close(1008, "unauthorized"); return; }
 
     let current: Session | undefined;
+    let term: TermHandle | undefined;
     const emit = (m: ServerMessage) => { if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(m)); };
     const repoPath = (name: string): string | undefined => discoverRepos(config).find((r) => r.name === name)?.path;
 
@@ -129,10 +131,30 @@ export function createServer(config: Config, source: SessionSource, push?: PushL
         manager.archive(msg.sessionId);
       } else if (msg.type === "unarchive") {
         manager.unarchive(msg.sessionId);
+      } else if (msg.type === "termList") {
+        listTerminals()
+          .then((names) => emit({ type: "terms", names }))
+          .catch((e) => emit({ type: "error", message: e instanceof Error ? e.message : String(e) }));
+      } else if (msg.type === "termAttach") {
+        listTerminals().then((names) => {
+          if (!names.includes(msg.name)) { emit({ type: "error", message: "no such terminal" }); return; }
+          term?.kill();
+          term = attachTerminal(
+            msg.name,
+            (data) => emit({ type: "termOut", data }),
+            () => { emit({ type: "termExit" }); term = undefined; },
+          );
+        }).catch((e) => emit({ type: "error", message: e instanceof Error ? e.message : String(e) }));
+      } else if (msg.type === "termInput") {
+        term?.write(msg.data);
+      } else if (msg.type === "termResize") {
+        term?.resize(msg.cols, msg.rows);
+      } else if (msg.type === "termDetach") {
+        term?.kill(); term = undefined;
       }
     });
 
-    ws.on("close", () => { current?.detach(); });
+    ws.on("close", () => { current?.detach(); term?.kill(); });
   });
 
   return http;
