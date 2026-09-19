@@ -20,7 +20,8 @@ network. Two layers: a terminal path (SSH + tmux) and a custom mobile bridge.
 | App path Stage 2, Slice B: session continuity (registry, list+history, reconnect, deep-link, repo auto-discovery) | Done, server+client verified in-browser; phone background/reconnect pending a real-device test |
 | App path Stage 2, Slice C: PWA polish (icons, offline shell) + auto-start on boot | Done; run bridge/scripts/setup-autostart.ps1 once to enable logon auto-start |
 | App path Stage 3: inline diff viewing (Edit/Write/MultiEdit in chat, approvals, history) | Done, browser-verified |
-| App path Stage 3: multi-repo management, terminal-continuation (PTY hybrid) | Not started |
+| App path Stage 3: multi-repo management (cross-repo overview + inline repo switch) | Done, browser-verified |
+| App path Stage 3: terminal-continuation (PTY hybrid) | Not started |
 
 Both paths have been driven from a real iPhone. Stage 1 was verified with 13 passing
 tests, a clean typecheck, a live SDK smoke test, and the tailnet HTTPS endpoint.
@@ -158,10 +159,25 @@ cards in chat, in the approval card (above Allow/Deny), and on history replay; n
 keep the plain `tool: <name>` line. `ponytail:` block view (whole old removed, whole new
 added), not an LCS line-diff, upgrade in `diff.ts` if large edits read poorly.
 
+## Stage 3: multi-repo management (shipped 2026-09-19)
+
+Design: `docs/superpowers/specs/2026-09-18-bridge-multi-repo-design.md`. `src/overview.ts`
+`buildOverview(config, manager)` merges every repo's active sessions into one recency-sorted
+list tagged with `repo`/`repoPath`, plus per-repo summaries (max lastModified + a `live` flag
+from the new `SessionManager.liveRepoPaths()`). New `listAll`/`sessionsAll` protocol pair and
+`server.ts` branch; a repo whose listing throws is skipped, not fatal. The client's sessions
+dialog now defaults to this cross-repo overview with a repo switcher bar (All repos + per-repo
+pills, live-dot, recency order) that re-lists over the open socket, no reconnect; tapping a
+repo shows its per-repo list with the archive toggle. `list`/`attach` still key on the repo
+NAME (server maps name->path), so overview rows attach with `s.repo`. Slice B already delivered
+the "concurrent" part (SessionManager keeps every repo's sessions live and pushes while
+detached); split-screen concurrent viewing is deliberately deferred (YAGNI on a phone).
+
 ## Next: rest of Stage 3
 
-Multi-repo management and the terminal-session continuation source (PTY hybrid). Stage 2
-(Slices A/B/C) is complete.
+Terminal-session continuation source (PTY hybrid, approach C): attach the phone to the live
+`claude` TUI / tmux session. The heaviest piece (PTY spawn, ANSI streaming, xterm.js, a new
+SessionSource); needs its own design pass before build.
 
 Build workflow: Slices A and B were built with `/orchestrate` (deepseek for the modules,
 inline for the untestable/browser-verified client), each task verify+commit through the WSL
