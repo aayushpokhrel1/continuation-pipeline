@@ -21,7 +21,7 @@ network. Two layers: a terminal path (SSH + tmux) and a custom mobile bridge.
 | App path Stage 2, Slice C: PWA polish (icons, offline shell) + auto-start on boot | Done; run bridge/scripts/setup-autostart.ps1 once to enable logon auto-start |
 | App path Stage 3: inline diff viewing (Edit/Write/MultiEdit in chat, approvals, history) | Done, browser-verified |
 | App path Stage 3: multi-repo management (cross-repo overview + inline repo switch) | Done, browser-verified |
-| App path Stage 3: terminal-continuation (PTY hybrid) | Done, client browser-verified; live mirror pending a real-device test |
+| App path Stage 3: terminal-continuation (PTY hybrid) + scrollback replay | Done, client browser-verified, scrollback verified against live tmux; live mirror pending a real-device test |
 
 Both paths have been driven from a real iPhone. Stage 1 was verified with 13 passing
 tests, a clean typecheck, a live SDK smoke test, and the tailnet HTTPS endpoint.
@@ -198,13 +198,18 @@ cache bumped to v2) streaming `termOut` and sending keystrokes; Back detaches; "
 when no session. This is a raw remote terminal (full shell, no structured approval gate) behind
 the same bearer-token + Tailscale perimeter as the SSH path.
 
+Scrollback replay (2026-09-23): attach now runs `tmux capture-pane -p -S -2000 -E -1` in the same
+`script` PTY before `tmux attach`, and the alt-screen switch (`ESC[?1049h/l`) is stripped from the
+stream, so the pane's history and the live screen share one xterm buffer and the phone can scroll
+back through what happened before it connected. Client `scrollback: 3000`. Verified end to end in
+WSL against a live tmux session (no 1049 sequences, history present).
+
 **Pending on a real phone:** open Terminal against a live `cc`/claude `continuation` session and
 confirm the TUI mirrors and keystrokes/approvals work (client render + plumbing are
 browser-verified with simulated output; the true live mirror is untested).
 
 Stage 3 (inline diffs, multi-repo, terminal continuation) is complete. Possible Stage 4 ideas:
-concurrent-terminal support, terminal scrollback replay on reconnect, session creation from the
-phone.
+concurrent-terminal support, session creation from the phone.
 
 Build workflow: Slices A and B were built with `/orchestrate` (deepseek for the modules,
 inline for the untestable/browser-verified client), each task verify+commit through the WSL

@@ -252,7 +252,7 @@ function openTerminalView(name) {
   $("composer").hidden = true;
   $("termview").hidden = false;
   if (!term) {
-    term = new Terminal({ fontSize: 13, cursorBlink: true, convertEol: false });
+    term = new Terminal({ fontSize: 13, cursorBlink: true, convertEol: false, scrollback: 3000 });
     fit = new FitAddon.FitAddon();
     term.loadAddon(fit);
     term.open($("term"));

@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
 import { attachTerminal, listTerminals } from "./terminal.ts";
 
+const ESC = "";
+
 function fakeChild() {
   const child: any = new EventEmitter();
   child.stdout = new EventEmitter();
@@ -30,7 +32,23 @@ test("spawns script with the tmux attach argv", () => {
 
   assert.equal(calls.length, 1);
   assert.equal(calls[0].cmd, "script");
-  assert.deepEqual(calls[0].args, ["-qfc", "tmux attach -t continuation", "/dev/null"]);
+  assert.deepEqual(calls[0].args, [
+    "-qfc",
+    "tmux capture-pane -p -t continuation -S -2000 -E -1; tmux attach -t continuation",
+    "/dev/null",
+  ]);
+});
+
+test("strips the alt-screen switch so scrollback stays in one buffer", () => {
+  const child = fakeChild();
+  const spawnFn = (() => child) as any;
+  const seen: string[] = [];
+
+  attachTerminal("continuation", (d) => seen.push(d), () => {}, spawnFn);
+  child.stdout.emit("data", Buffer.from("old" + ESC + "[?1049h" + ESC + "[H" + "new"));
+  child.stdout.emit("data", Buffer.from(ESC + "[?1049l"));
+
+  assert.deepEqual(seen, ["old" + ESC + "[H" + "new", ""]);
 });
 
 test("child stdout data reaches onData", () => {
