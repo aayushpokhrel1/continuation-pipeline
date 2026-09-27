@@ -29,33 +29,36 @@ the fast, robust path today and the polished path as it lands.
   Terminal path           App path
   (SSH + tmux)            (mobile bridge)
   full control            nice mobile UI
-  shipping now            Stage 1 live
+  shipping now            shipped (Stages 1-3)
 ```
 
 | Layer | What it is | What it is for | Status |
 |-------|-----------|----------------|--------|
 | **Backbone** | A [Tailscale](https://tailscale.com) tailnet joining phone and workstation on a private WireGuard mesh. | The secure transport everything rides on. No port forwarding, no firewall holes, no public exposure. | **Shipping** |
 | **Terminal path** | OpenSSH on the workstation plus a persistent `tmux` session running `claude` inside WSL. | Full control from the phone: any repo, any shell command, attach and detach a long running session, and the only path that reaches the write capable WSL vault. | **Shipping** |
-| **App path** | A self hosted bridge that drives Claude Code through the Claude Agent SDK, served to a mobile PWA with tool approval buttons and push notifications. | Everyday steering without living in a terminal: readable chat, one tap approvals, notify me when the agent needs me. | **Stage 1 shipped** ([`bridge/`](bridge/); more in [Roadmap](#roadmap)) |
+| **App path** | A self hosted bridge that drives Claude Code through the Claude Agent SDK, served to a mobile PWA with tool approval buttons, push notifications, inline diffs, a cross-repo session overview, and a live terminal into the `cc` session. | Everyday steering without living in a terminal: readable chat, one tap approvals, notify me when the agent needs me. | **Shipped, Stages 1-3** ([`bridge/`](bridge/); see [Roadmap](#roadmap)) |
 
 **The mental model:**
 
 ```
 Tailscale  ->  the private road between the two devices   (install once, both ends)
 SSH + tmux ->  the raw, complete cockpit                  (power use, works today)
-The bridge ->  the comfortable passenger seat             (everyday use, Stage 1 live)
+The bridge ->  the comfortable passenger seat             (everyday use, shipped)
 ```
 
 ---
 
 ## Status
 
-This repo ships the **backbone**, the **terminal path**, and **Stage 1 of the app
-path** today. The backbone and terminal path are enough to drive this workstation's
-Claude Code from your phone right now. Stage 1 of the app path (the custom mobile
-bridge, [`bridge/`](bridge/)) is built and verified: start a session in a chosen
-repo, stream output, and approve or deny tools from the phone. Its design lives in
-[`docs/`](docs/); nothing in the terminal-path quick start below depends on it.
+This repo ships the **backbone**, the **terminal path**, and the **full app path
+(Stages 1-3)** today. The backbone and terminal path are enough to drive this
+workstation's Claude Code from your phone right now. The app path (the custom mobile
+bridge, [`bridge/`](bridge/)) is built and verified end to end: pick a repo, stream a
+session, approve or deny tools (Ask / Auto-safe / YOLO), get Web Push when the agent
+needs you, resume sessions after backgrounding, see inline diffs, browse sessions
+across every repo, and open a live terminal into the `cc` session. The per-stage
+designs live in [`docs/`](docs/) and [`docs/superpowers/specs/`](docs/superpowers/specs/);
+nothing in the terminal-path quick start below depends on the app path.
 
 ---
 
@@ -212,17 +215,26 @@ service that drives Claude Code through the
 streaming mode (a session per chosen repo, full local file access), plus an installable
 **PWA**, bound only to the Tailscale interface behind a bearer token and Tailscale's own
 HTTPS. Setup and run instructions live in [`bridge/README.md`](bridge/README.md); the
-design and staging in [`docs/app-path-design.md`](docs/app-path-design.md).
+overall design in [`docs/app-path-design.md`](docs/app-path-design.md) and each stage's
+design in [`docs/superpowers/specs/`](docs/superpowers/specs/).
 
-- **Stage 1 (shipped):** start a session in a chosen repo, stream assistant messages
-  and tool calls, and approve or deny each tool from the phone (Ask mode). One session
-  per connection. Verified with tests, a live SDK check, and a real iPhone.
-- **Stage 2 (next):** session list and resume, **Web Push** notifications, and the
-  Auto-safe and YOLO approval modes, plus a proper mobile UI and auto-start on boot.
-- **Stage 3:** multi-repo management, a terminal-session continuation source (drive the
-  live `cc` tmux session from the app), and inline diff viewing.
+All three stages are shipped:
 
-The terminal path stands on its own regardless of how far the app path goes.
+- **Stage 1 (shipped):** start a session in a chosen repo, stream assistant messages and
+  tool calls, and approve or deny each tool from the phone (Ask mode). Verified with tests,
+  a live SDK check, and a real iPhone.
+- **Stage 2 (shipped):** the three approval modes (Ask / Auto-safe / YOLO) and **Web Push**
+  (Slice A); session continuity, a durable per-repo session list with history replay,
+  auto-reconnect on foreground, and push deep-links (Slice B); installable-PWA polish, an
+  offline app-shell, and logon auto-start (Slice C).
+- **Stage 3 (shipped):** inline diff viewing (Edit/Write/MultiEdit rendered in chat,
+  approvals, and history), multi-repo management (a cross-repo session overview with an
+  inline repo switcher), and terminal continuation (attach the phone to the live `cc` tmux
+  session as a real xterm.js terminal, node-pty-free via `script`).
+
+Possible next (not started): concurrent terminals, terminal scrollback replay on reconnect,
+and starting a session from the phone. The terminal path stands on its own regardless of how
+far the app path goes.
 
 ---
 

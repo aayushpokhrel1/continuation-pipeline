@@ -6,13 +6,16 @@ repo, streams the agent's output, and lets you approve or deny each tool from yo
 phone. It runs inside WSL and is reached over your Tailscale network, no public
 exposure.
 
-Shipped: pick a repo (configured or auto-discovered), see a durable list of that repo's
-past sessions, open one (with its history) or start a new one, stream output, approve or
-deny tools, pick an approval mode (Ask / Auto-safe / YOLO), and get a Web Push notification
-when a tool needs approval or a turn finishes. Sessions live in a server-side registry that
-outlives the socket, so a pending approval waits while the phone is backgrounded and is
-re-delivered on reconnect; the app auto-reconnects when foregrounded and a push deep-links
-into its session. PWA polish and auto-start on boot come next (Slice C).
+Shipped: pick a repo (configured or auto-discovered), browse sessions across every repo in a
+cross-repo overview or per repo, open one (with its history) or start a new one, stream
+output with inline diffs for Edit/Write/MultiEdit, approve or deny tools, pick an approval
+mode (Ask / Auto-safe / YOLO), and get a Web Push notification when a tool needs approval or a
+turn finishes. Sessions live in a server-side registry that outlives the socket, so a pending
+approval waits while the phone is backgrounded and is re-delivered on reconnect; the app
+auto-reconnects when foregrounded and a push deep-links into its session. The PWA is
+installable with an offline app-shell and (on Windows) logon auto-start. A Terminal button
+also attaches the phone to the live `cc` tmux session as a real xterm.js terminal (see
+[Terminal continuation](#terminal-continuation)).
 
 ## Prerequisites
 
@@ -108,11 +111,13 @@ there.
 2. In the setup dialog, enter that same origin and your token, pick a repo and an
    approval mode (Ask / Auto-safe / YOLO), Connect. If Web Push is configured, you get
    a notification-permission prompt on Connect; allow it to receive pushes.
-3. You land on the repo's session list: tap a past session to reopen it (its history
-   loads), or "+ New session" to start fresh. Tap "Sessions" in the header any time to
-   reopen the list and switch sessions without reconnecting; "Show archived" toggles the
-   archived view; each row has Archive / Unarchive (soft, reversible, kept on disk). Tap
-   the status (gear) to change repo/mode/token.
+3. You land on the cross-repo overview: every repo's active sessions in one recency-sorted
+   list, each tagged with its repo, plus a repo switcher bar (All repos + per-repo pills with
+   a live dot). Tap a session to reopen it (its history loads), tap a repo pill to see just
+   that repo (with "Show archived" and per-row Archive / Unarchive, soft and reversible), or
+   "+ New session" to start fresh. Tap "Sessions" in the header any time to reopen it and
+   switch repo/session without reconnecting; "Server" or the status (gear) changes
+   origin/token.
 4. Send a message. In Ask mode, when the agent wants a tool an approval card appears
    with Allow and Deny; tap Allow and the result streams back. Auto-safe auto-approves
    read-only tools (Read/Glob/Grep) and prompts for the rest; YOLO runs everything
@@ -120,6 +125,23 @@ there.
 5. Share sheet, Add to Home Screen, to install it as an app (required for iOS push).
    Backgrounding closes the socket; when you reopen (or tap a push) the app reconnects
    and drops you back into the session, with any pending approval waiting.
+
+## Terminal continuation
+
+The **Terminal** button (in the Sessions dialog) attaches the phone to the live tmux
+`continuation` session that the terminal path's `cc` runs, so the phone mirrors the desktop
+terminal live and you drive the same `claude` TUI (approvals happen in the TUI, as on the
+desktop). It renders in a full-screen [xterm.js](https://xtermjs.org) terminal, vendored
+locally under `public/vendor/` (cached by the service worker, so it works offline).
+
+The bridge never creates the tmux session, it only attaches: `tmux new-session` needs a
+controlling TTY the server process does not have, so run `cc` on the workstation first. If no
+session is running the app says so. The stream is node-pty-free: the server spawns
+`script -qfc "tmux attach -t continuation" /dev/null`, so `tmux attach` runs on a real PTY
+(`script` supplies it), its stdout is the terminal output and its stdin is your keystrokes.
+This is effectively a remote terminal into the workstation (full shell, no structured
+approval gate), behind the same bearer-token + Tailscale perimeter as the SSH path. Design:
+[`docs/superpowers/specs/2026-09-19-bridge-terminal-continuation-design.md`](../docs/superpowers/specs/2026-09-19-bridge-terminal-continuation-design.md).
 
 ## Test and typecheck
 
@@ -135,17 +157,34 @@ src/config.ts       load and validate config.json
 src/auth.ts         constant time bearer token check
 src/approvals.ts    async approval registry (allow/deny promises)
 src/protocol.ts     WebSocket message types (client <-> server)
-src/source.ts       SessionSource interface (the seam for Stage 2/3 sources)
-src/session.ts      one turn: source + approvals + streamed events
+src/source.ts       SessionSource interface (the seam for alternate sources)
 src/sdkSource.ts    Agent SDK impl of SessionSource (approval mode -> SDK options; listSessions/getHistory)
 src/session.ts      one session: attach/detach-able, owns approvals, survives socket loss
 src/sessionManager.ts  registry of live sessions keyed by SDK session id (outlives connections)
 src/repos.ts        configured repos + auto-discovered git repos under projectsDir
+src/overview.ts     cross-repo session overview (merge every repo's sessions + live flags)
+src/diff.ts         tool call -> inline diff model (Edit/Write/MultiEdit)
+src/terminal.ts     terminal continuation: attach a tmux session via a script PTY child
 src/push.ts         Web Push: VAPID send + subscription store (PushLike seam)
-src/server.ts       HTTP (health, repos, vapid, subscribe, static) + WebSocket (list/start/attach/user/approve)
+src/server.ts       HTTP (health, repos, vapid, subscribe, static) + WebSocket (sessions + terminal)
 src/index.ts        entrypoint
-public/             the PWA (session list, attach + history, reconnect; sw.js push + deep-link)
+public/             the PWA (overview + per-repo lists, attach + history, diffs, terminal; sw.js)
+public/vendor/      vendored xterm.js + fit addon + css for the terminal
 ```
+
+## Gotchas
+
+- **Run everything through WSL, not Windows.** `node_modules/.bin/*` are POSIX symlinks
+  created in WSL, so `tsc`/`tsx` are "not recognized" on the Windows side. Verify with
+  `wsl -d Ubuntu -- bash -lc 'source ~/.nvm/nvm.sh && cd .../bridge && npm run verify'`. The
+  `delegate --verify` flag runs on Windows/cmd and cannot run this, so verify + commit
+  manually after a delegate run.
+- **tmux needs a TTY to create a session.** The bridge only ever attaches (via `script`,
+  which supplies a PTY); it never runs `tmux new-session`. Start the session with `cc` in a
+  real terminal first.
+- **`hidden` loses to an explicit `display`.** `#composer` / `#log` set `display: flex`, so
+  `el.hidden = true` does nothing until a `#composer[hidden] { display: none }` rule (higher
+  specificity) overrides it. Watch this when toggling flex elements.
 
 ## Notes
 
