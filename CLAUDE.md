@@ -6,11 +6,18 @@ Continuation Pipeline.
 
 | File | What it holds |
 | --- | --- |
-| `README.md` | What it is, the stack, how to run it |
-| `docs/app-path-design.md` | Design of the app path |
-| `docs/superpowers/` | Per-feature specs and plans, written before building |
+| `README.md` | What the project is, the two paths, prerequisites, terminal-path quick start, security model, Windows/WSL gotchas, roadmap |
+| `bridge/README.md` | The app path end to end: prerequisites, setup, Web Push, run, `tailscale serve`, auto-start, phone use, terminal continuation, test/typecheck, file layout, gotchas |
+| `docs/app-path-design.md` | Why the app path is built this way: shape, confirmed decisions, session-sourcing approaches, verified Agent SDK facts, approval modes, per-stage scope |
+| `docs/superpowers/specs/` | One design spec per slice, written before building it |
+| `docs/superpowers/plans/` | The implementation plan for a slice, where one was written out |
+| `HANDOVER.md` | Current state only (see below) |
 
 `HANDOVER.md` here is **tracked**, unlike most of these projects, so it is part of the repo history. Keep it short anyway.
+
+The two READMEs are the source of truth for anything a reader needs in order to run or trust the
+thing. The design docs explain why it is shaped that way and are not updated to narrate progress
+beyond marking a stage shipped.
 
 ## The handover
 
@@ -45,6 +52,24 @@ wsl -d Ubuntu -- bash -lc 'cat /mnt/c/<tmp>/note.md >> /mnt/c/Users/aayus/Docume
 stale claim where it sits rather than adding a newer entry underneath it, because the next reader
 may hit the old one first. Cross-check every number (versions, counts, commit) against reality
 instead of trusting what the file says.
+
+## How work gets built here
+
+Per the global CLAUDE.md, implementation is delegated to the pipeline (`deepseek` for a module
+or a real refactor, `free` for boilerplate) with `--verify` and a review of the diff. Design, SDK
+research, and security judgement stay in-session.
+
+Each slice gets a spec in `docs/superpowers/specs/` **before** it is built.
+
+Verify before claiming anything works. It has to run inside WSL, because `node_modules/.bin/*`
+are POSIX symlinks and `tsc`/`tsx` are "not recognized" on the Windows side:
+
+```bash
+wsl -d Ubuntu -- bash -lc 'source ~/.nvm/nvm.sh && cd "/mnt/c/Users/aayus/dev/Projects/Continuation Pipeline/bridge" && npm run verify'
+```
+
+That is `tsc --noEmit` plus the `node:test` suite. `delegate --verify` runs through Windows cmd
+and cannot run it, so verify and commit by hand after a delegate run.
 
 ## Where knowledge goes
 

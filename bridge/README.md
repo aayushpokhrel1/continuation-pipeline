@@ -137,8 +137,17 @@ locally under `public/vendor/` (cached by the service worker, so it works offlin
 The bridge never creates the tmux session, it only attaches: `tmux new-session` needs a
 controlling TTY the server process does not have, so run `cc` on the workstation first. If no
 session is running the app says so. The stream is node-pty-free: the server spawns
-`script -qfc "tmux attach -t continuation" /dev/null`, so `tmux attach` runs on a real PTY
-(`script` supplies it), its stdout is the terminal output and its stdin is your keystrokes.
+`script -qfc "tmux capture-pane ...; tmux attach -t continuation" /dev/null`, so `tmux attach`
+runs on a real PTY (`script` supplies it), its stdout is the terminal output and its stdin is your
+keystrokes.
+
+On attach the pane's scrollback is replayed first (`tmux capture-pane` over the last 2000 lines,
+in the same PTY as the attach, so the ordering is free), and the alt-screen switch is stripped so
+the replay and the live screen share one xterm buffer. You land on what already happened rather
+than a blank screen, and you can scroll back through it on the phone.
+
+Only one terminal at a time: the client attaches the first tmux session it is offered.
+
 This is effectively a remote terminal into the workstation (full shell, no structured
 approval gate), behind the same bearer-token + Tailscale perimeter as the SSH path. Design:
 [`docs/superpowers/specs/2026-09-19-bridge-terminal-continuation-design.md`](../docs/superpowers/specs/2026-09-19-bridge-terminal-continuation-design.md).
@@ -146,9 +155,12 @@ approval gate), behind the same bearer-token + Tailscale perimeter as the SSH pa
 ## Test and typecheck
 
 ```bash
+npm run verify     # typecheck + tests, the one gate (56 tests, all passing)
 npm test           # node:test suite via tsx
 npm run typecheck  # tsc --noEmit
 ```
+
+Run these through WSL, not Windows (see Gotchas).
 
 ## Layout
 
@@ -163,11 +175,13 @@ src/session.ts      one session: attach/detach-able, owns approvals, survives so
 src/sessionManager.ts  registry of live sessions keyed by SDK session id (outlives connections)
 src/repos.ts        configured repos + auto-discovered git repos under projectsDir
 src/overview.ts     cross-repo session overview (merge every repo's sessions + live flags)
+src/archive.ts      soft archive store (archived.json): hide a session from the list, reversibly
 src/diff.ts         tool call -> inline diff model (Edit/Write/MultiEdit)
 src/terminal.ts     terminal continuation: attach a tmux session via a script PTY child
 src/push.ts         Web Push: VAPID send + subscription store (PushLike seam)
 src/server.ts       HTTP (health, repos, vapid, subscribe, static) + WebSocket (sessions + terminal)
 src/index.ts        entrypoint
+src/smoke.ts        manual live-SDK smoke check (not part of npm test)
 public/             the PWA (overview + per-repo lists, attach + history, diffs, terminal; sw.js)
 public/vendor/      vendored xterm.js + fit addon + css for the terminal
 ```

@@ -230,11 +230,11 @@ All three stages are shipped:
 - **Stage 3 (shipped):** inline diff viewing (Edit/Write/MultiEdit rendered in chat,
   approvals, and history), multi-repo management (a cross-repo session overview with an
   inline repo switcher), and terminal continuation (attach the phone to the live `cc` tmux
-  session as a real xterm.js terminal, node-pty-free via `script`).
+  session as a real xterm.js terminal, node-pty-free via `script`, with the pane's scrollback
+  replayed on attach so you land with the history above the cursor, not a blank screen).
 
-Possible next (not started): concurrent terminals, terminal scrollback replay on reconnect,
-and starting a session from the phone. The terminal path stands on its own regardless of how
-far the app path goes.
+Possible next (not started): attaching more than one terminal at once, and starting a session
+from the phone. The terminal path stands on its own regardless of how far the app path goes.
 
 ---
 

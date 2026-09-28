@@ -1,7 +1,9 @@
 # App path: custom mobile bridge (design notes)
 
-Status: in progress. The terminal path (SSH + tmux) ships today and does not
-depend on any of this. These notes capture the design so it is not re-derived.
+Status: built and shipped, Stages 1-3. The terminal path (SSH + tmux) ships today and does not
+depend on any of this. These notes capture the *design* so it is not re-derived; how to set it up
+and run it lives in [`../bridge/README.md`](../bridge/README.md), which is the source of truth for
+behaviour.
 
 ## Goal
 
@@ -47,8 +49,9 @@ phone PWA  <--- websocket over Tailscale HTTPS --->  bridge server (workstation)
   separate terminal path and are not involved in the bridge. The WSL `claude` login is
   shared by both `cc` and the bridge.
 - **Session model:** the app manages its OWN sessions (start in a chosen repo, resume
-  by session id). Continuing the live terminal `cc` session is a FUTURE option, so
-  session sourcing sits behind a `SessionSource` interface (see approaches).
+  by session id). Continuing the live terminal `cc` session sat behind a `SessionSource`
+  interface as a future option (see approaches); it shipped in Stage 3, and keeping the seam
+  is what made that a new source rather than a rewrite.
 
 ## Approaches (session sourcing)
 
@@ -65,10 +68,11 @@ phone PWA  <--- websocket over Tailscale HTTPS --->  bridge server (workstation)
 
 - `query({ prompt, options })` returns an async generator of messages (assistant text
   blocks and `tool_use` events). `prompt` may be a string or `AsyncIterable<SDKUserMessage>`.
-- `canUseTool?: (request, { signal }) => Promise<CanUseToolResult>` is an **async**
-  permission callback, invoked only when a tool needs a prompt. This is the hook the
-  phone approval flow awaits. Confirm the exact `CanUseToolResult` shape at build time
-  (docs show `{ approved: true }`; some SDK versions use `{ behavior: 'allow' | 'deny' }`).
+- `canUseTool?: (toolName, input) => Promise<CanUseToolResult>` is an **async** permission
+  callback, invoked only when a tool needs a prompt. This is the hook the phone approval flow
+  awaits. **Settled at build time against SDK `0.3.x`: the result shape is the `behavior` one,**
+  `{ behavior: 'allow', updatedInput: input }` or `{ behavior: 'deny', message }`, not the
+  `{ approved: true }` the docs showed. `sdkSource.ts` is the only file that knows this.
 - Resume: `resume: sessionId`, `continue: true`, `forkSession: boolean`. History:
   `listSessions({ dir, limit })`, `getSessionMessages()`.
 - `cwd: string` selects the repo. `permissionMode: 'default' | 'plan' | 'bypassPermissions'`.
@@ -108,4 +112,10 @@ one place that knows the SDK permission shape).
   theme-color), offline app-shell cache in the service worker (network-first), and logon
   auto-start via a Windows Scheduled Task (`scripts/setup-autostart.ps1` +
   `scripts/start-bridge.sh`). Stage 2 complete.
-- **Stage 3:** multi-repo management, terminal-continuation source (C), inline diff viewing.
+- **Stage 3 (shipped):** inline diff viewing (a `diff.ts` model built from the tool call, so the
+  same renderer serves chat, approvals, and replayed history), multi-repo management (`overview.ts`
+  merges every repo's sessions with live flags, plus a soft `archive.ts` store), and terminal
+  continuation, which is approach **C** above: the reason `SessionSource` was an interface from
+  Stage 1. It attaches to an existing tmux session through `script` (no node-pty) and replays the
+  pane's scrollback before the live attach. The bridge never creates the session, because
+  `tmux new-session` needs a controlling TTY the server does not have.
