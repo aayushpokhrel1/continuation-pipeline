@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  bridge:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bridge
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: bridge/package-lock.json
+      - run: npm ci
+      # tsc --noEmit plus the node:test suite
+      - run: npm run verify
+
+  scripts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: bash -n (parse only, nothing runs)
+        run: for f in setup.sh scripts/*.sh bridge/scripts/*.sh; do bash -n "$f" || exit 1; echo "ok $f"; done
+      - name: PowerShell parse (nothing runs)
+        shell: pwsh
+        run: |
+          $failed = $false
+          foreach ($f in 'setup.ps1', 'bridge/scripts/setup-autostart.ps1') {
+            $errs = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile($f, [ref]$null, [ref]$errs)
+            if ($errs) { $errs | ForEach-Object { Write-Error "$f : $_" }; $failed = $true } else { "ok $f" }
+          }
+          if ($failed) { exit 1 }

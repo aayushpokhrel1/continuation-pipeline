@@ -9,7 +9,9 @@ Backbone (Tailscale), terminal path (SSH + tmux `cc`), and the app path (Stages 
 shipped and committed. Nothing is half-built.
 
 - `bridge` verify is green: **56 tests passing, 0 failing, `tsc --noEmit` clean** (run through
-  WSL, see CLAUDE.md).
+  WSL, see CLAUDE.md), and the same `npm run verify` runs in GitHub Actions CI on every push.
+- The README's Status section lists what is device-checked and what is not; keep it in step
+  with the list below when a check is done on the phone.
 - Both paths have been driven from a real iPhone through Stage 2.
 - Last doc-affecting code commit: `7948414` (tmux scrollback replay on terminal attach).
 

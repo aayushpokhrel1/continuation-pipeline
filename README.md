@@ -1,5 +1,7 @@
 # Continuation Pipeline
 
+[![CI](https://github.com/aayushpokhrel1/continuation-pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/aayushpokhrel1/continuation-pipeline/actions/workflows/ci.yml)
+
 **Secure phone to workstation access to Claude Code. Drive the coding agent
 running on your own machine, with all of its local repos, tools, and files,
 from your phone, over a private WireGuard network with no open ports.**
@@ -53,12 +55,22 @@ The bridge ->  the comfortable passenger seat             (everyday use, shipped
 This repo ships the **backbone**, the **terminal path**, and the **full app path
 (Stages 1-3)** today. The backbone and terminal path are enough to drive this
 workstation's Claude Code from your phone right now. The app path (the custom mobile
-bridge, [`bridge/`](bridge/)) is built and verified end to end: pick a repo, stream a
-session, approve or deny tools (Ask / Auto-safe / YOLO), get Web Push when the agent
-needs you, resume sessions after backgrounding, see inline diffs, browse sessions
-across every repo, and open a live terminal into the `cc` session. The per-stage
-designs live in [`docs/`](docs/) and [`docs/superpowers/specs/`](docs/superpowers/specs/);
-nothing in the terminal-path quick start below depends on the app path.
+bridge, [`bridge/`](bridge/)) is built: pick a repo, stream a session, approve or deny
+tools (Ask / Auto-safe / YOLO), get Web Push when the agent needs you, resume sessions
+after backgrounding, see inline diffs, browse sessions across every repo, and open a
+live terminal into the `cc` session. The per-stage designs live in [`docs/`](docs/) and
+[`docs/superpowers/specs/`](docs/superpowers/specs/); nothing in the terminal-path quick
+start below depends on the app path.
+
+**What has been checked, and how.** Every feature is covered by the bridge's unit tests
+and type check, which run in CI on each push. On top of that:
+
+| Checked on a real iPhone | Not yet device-checked |
+|---|---|
+| The terminal path (SSH + tmux `cc`) | iOS Web Push after a Home Screen install |
+| App path Stage 1: pick a repo, stream a session, approve or deny tools | Background, push, resume with an approval still waiting |
+| App path Stage 2: approval modes, per-repo session list, history replay | The cross-repo overview attach |
+| | The live terminal against a real `cc` session (browser-checked with simulated output only) |
 
 ---
 
@@ -226,12 +238,15 @@ All three stages are shipped:
 - **Stage 2 (shipped):** the three approval modes (Ask / Auto-safe / YOLO) and **Web Push**
   (Slice A); session continuity, a durable per-repo session list with history replay,
   auto-reconnect on foreground, and push deep-links (Slice B); installable-PWA polish, an
-  offline app-shell, and logon auto-start (Slice C).
+  offline app-shell, and logon auto-start (Slice C). iOS Web Push and the
+  background-push-resume loop are not yet device-checked.
 - **Stage 3 (shipped):** inline diff viewing (Edit/Write/MultiEdit rendered in chat,
   approvals, and history), multi-repo management (a cross-repo session overview with an
   inline repo switcher), and terminal continuation (attach the phone to the live `cc` tmux
   session as a real xterm.js terminal, node-pty-free via `script`, with the pane's scrollback
   replayed on attach so you land with the history above the cursor, not a blank screen).
+  The overview attach and the live terminal are tested and browser-checked, not yet
+  device-checked.
 
 Possible next (not started): attaching more than one terminal at once, and starting a session
 from the phone. The terminal path stands on its own regardless of how far the app path goes.

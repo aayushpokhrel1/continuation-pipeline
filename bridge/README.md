@@ -160,7 +160,10 @@ npm test           # node:test suite via tsx
 npm run typecheck  # tsc --noEmit
 ```
 
-Run these through WSL, not Windows (see Gotchas).
+Run these through WSL, not Windows (see Gotchas). CI
+([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)) runs `npm ci && npm run verify`
+natively on ubuntu-latest on every push to `main` and every PR, plus a parse check of the
+setup scripts.
 
 ## Layout
 
