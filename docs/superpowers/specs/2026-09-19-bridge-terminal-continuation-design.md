@@ -1,6 +1,7 @@
-# Bridge Stage 3: terminal continuation (PTY hybrid) — design
+# Bridge Stage 3: terminal continuation (PTY hybrid): design
 
-Date: 2026-09-19. Status: approved, ready to build. This is approach C from
+Date: 2026-09-19. Status: SHIPPED (Stage 3), browser-checked with simulated output; not yet
+device-checked against a real `cc` session. This is approach C from
 `docs/app-path-design.md`: attach the phone to the live `claude` terminal session.
 
 ## Goal
@@ -67,7 +68,7 @@ export function listTerminals(spawnFn?: typeof nodeSpawn): Promise<string[]>;
 `name` reaches a shell string (`script -c "tmux attach -t <name>"`). It comes from an
 authenticated client, but validate anyway: the `^[A-Za-z0-9_.-]+$` guard in `attachTerminal`
 is mandatory (do not remove), and `server.ts` only attaches to a name returned by
-`listTerminals` (allowlist). Belt and suspenders — this is a command-injection surface.
+`listTerminals` (allowlist). Belt and suspenders: this is a command-injection surface.
 
 Overall this channel is a remote terminal into the workstation with full shell power and no
 structured approval gate, behind the existing perimeter (bearer token + Tailscale,

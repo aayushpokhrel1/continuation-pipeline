@@ -61,8 +61,8 @@ phone PWA  <--- websocket over Tailscale HTTPS --->  bridge server (workstation)
 - **B. Long-lived streaming `query()`** (feed an `AsyncIterable` of user messages into
   one running agent). Lower latency, more lifecycle complexity. Later optimization.
 - **C. PTY / terminal-stream hybrid** (stream a real `claude` TUI). This is the
-  "continue my terminal session" future feature. Kept as the reason session sourcing
-  is behind an interface, not built now.
+  "continue my terminal session" feature, and the reason session sourcing is behind an
+  interface. Shipped in Stage 3 (see Stages below).
 
 ## Agent SDK facts (verified from code.claude.com/docs/en/agent-sdk/typescript)
 
@@ -93,7 +93,7 @@ one place that knows the SDK permission shape).
 
 ## Stages
 
-- **Stage 1 (MVP, this plan):** start a session in a chosen repo, stream output, approve
+- **Stage 1 (MVP, shipped):** start a session in a chosen repo, stream output, approve
   or deny tools from the phone, send follow-ups. Bearer token, over Tailscale. Ask mode only.
 - **Stage 2, Slice A (shipped):** the three approval modes + Web Push. Server holds VAPID
   keys in `config.json` (private key gitignored, never served/logged), serves the public key

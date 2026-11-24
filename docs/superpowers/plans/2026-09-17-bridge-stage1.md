@@ -1,5 +1,7 @@
 # Mobile Bridge Stage 1 Implementation Plan
 
+Status: executed; Stage 1 shipped. The checkboxes below were not ticked as it ran.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** From an iPhone PWA, start a Claude Code session in a chosen repo on the workstation, stream its output, approve or deny each tool call, and send follow-up messages, all over the existing Tailscale network behind a bearer token.

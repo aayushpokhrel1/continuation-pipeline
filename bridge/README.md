@@ -155,7 +155,7 @@ approval gate), behind the same bearer-token + Tailscale perimeter as the SSH pa
 ## Test and typecheck
 
 ```bash
-npm run verify     # typecheck + tests, the one gate (56 tests, all passing)
+npm run verify     # typecheck + tests, the one gate (CI runs this too)
 npm test           # node:test suite via tsx
 npm run typecheck  # tsc --noEmit
 ```

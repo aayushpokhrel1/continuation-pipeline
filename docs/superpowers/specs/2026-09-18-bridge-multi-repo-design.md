@@ -1,6 +1,6 @@
 # Bridge Stage 3: multi-repo management (design)
 
-Date: 2026-09-18. Status: approved, ready to build.
+Date: 2026-09-18. Status: SHIPPED (Stage 3). Cross-repo overview attach not yet device-checked.
 
 ## Goal
 

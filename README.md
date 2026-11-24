@@ -20,8 +20,8 @@ and web versions are great but they do not touch *that* machine. This pipeline
 closes the gap: it gives your phone a secure, private line into the Claude Code
 running at home, without exposing anything to the public internet.
 
-It is deliberately built in two layers over one secure backbone, so you can use
-the fast, robust path today and the polished path as it lands.
+It is deliberately built in two layers over one secure backbone, so you can pick
+the raw, complete path or the polished one.
 
 ```
         Tailscale tailnet  (WireGuard, private, zero open ports)   <- shared backbone
@@ -174,7 +174,8 @@ independently sufficient to keep strangers out:
    public IP and no forwarded port, so internet wide scanners never see it. Tighten
    further with [Tailscale ACLs](https://tailscale.com/kb/1018/acls) to allow only
    your phone to reach port 22.
-2. **Key only SSH.** Password authentication is disabled by `setup.ps1`; only a
+2. **Key only SSH.** Password authentication is disabled by `setup.ps1`, or by
+   `setup.sh` when given `--key-path`; only a
    device holding your private key can complete a login, and the key never leaves
    the phone.
 3. **WireGuard transport.** Everything between phone and workstation is encrypted
@@ -206,8 +207,7 @@ time.
 - **WSL2 has its own NAT'd network.** SSHing to the Windows *host* and then
   running `wsl` (what this setup does) needs no extra networking. SSHing
   *directly* into WSL over the tailnet is possible but requires running Tailscale
-  inside WSL or a `netsh` port proxy; that is the advanced path, noted in
-  [`docs/`](docs/), not the default.
+  inside WSL or a `netsh` port proxy; that is the advanced path, not covered here.
 - **Keep WSL from idling out.** WSL2 can shut a distro down when nothing is
   attached. A running `tmux` server with `claude` in it counts as activity and
   keeps it up, but if you want belt and suspenders, set

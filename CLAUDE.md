@@ -12,6 +12,7 @@ Continuation Pipeline.
 | `docs/superpowers/specs/` | One design spec per slice, written before building it |
 | `docs/superpowers/plans/` | The implementation plan for a slice, where one was written out |
 | `HANDOVER.md` | Current state only (see below) |
+| `.github/workflows/ci.yml` | CI: `npm ci && npm run verify` in `bridge/` plus a parse check of the setup scripts, on every push to `main` and every PR |
 
 `HANDOVER.md` here is **tracked**, unlike most of these projects, so it is part of the repo history. Keep it short anyway.
 

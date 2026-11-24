@@ -10,19 +10,13 @@ shipped and committed. Nothing is half-built.
 
 - `bridge` verify is green: **56 tests passing, 0 failing, `tsc --noEmit` clean** (run through
   WSL, see CLAUDE.md), and the same `npm run verify` runs in GitHub Actions CI on every push.
-- The README's Status section lists what is device-checked and what is not; keep it in step
-  with the list below when a check is done on the phone.
-- Both paths have been driven from a real iPhone through Stage 2.
 - Last doc-affecting code commit: `7948414` (tmux scrollback replay on terminal attach).
 
 ## Pending real-device checks
 
-Code is done for all of these; they can only be confirmed on the phone.
-
-- iOS Web Push after Home-Screen install, and the Slice B loop of background -> push -> resume
-  with the approval still waiting.
-- Cross-repo overview attach, and the live terminal against a real `cc` `continuation` session.
-  The terminal render and plumbing are browser-verified with simulated output only.
+Code is done; they can only be confirmed on the phone. The list is the "Not yet
+device-checked" column of the README's Status section, its one home: move a row across there
+when a check passes on the iPhone.
 
 ## This machine
 
